@@ -6,4 +6,4 @@ redirect_from:
   - /about.html
 ---
 
-Hi I'm Mranmay Shetty an undergrad researcher interested in biologically-inspired and cognitive-inspired AI interning at Harvard Medical School previously I worked on Multi-modal and Explainable AI for Object Detection and Affective Disorder Detection under Dr Rahee Walambe at SCAAI and Avegen Healthcare. I also like playing video games in my free time and used to play Call of Duty professionally too at one point and got mentioned in liquipedia for being in one of the top 10 teams in South Asia.
+Hi I'm Mranmay Shetty an undergrad researcher interested in biologically-inspired and cognitive-inspired AI interning at Harvard Medical School under Dr Gabriel Kreiman previously I worked on Multi-modal and Explainable AI for Object Detection and Affective Disorder Detection under Dr Rahee Walambe at SCAAI and Avegen Healthcare. I also like playing video games in my free time and used to play Call of Duty professionally too at one point and got mentioned in liquipedia for being in one of the top 10 teams in South Asia.
