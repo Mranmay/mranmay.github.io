@@ -17,10 +17,10 @@ Research experience
 ======
 *  Jan 2023– Present: Research Intern at Harvard Medical School
   * Worked on experiments leveraging Large Language Models (LLMs) to assess Turing 
-    test capabilities
+test capabilities
   * Executed in-lab experiments utilizing PsiTurk for data collection.
   * Currently engaged in ongoing research on computational models of working memory 
-    with intercranial electrode data.
+with intercranial electrode data.
 
 * July 2022-July 2023: DST Funded Researcher University of Milan, Italy and Symbiosis Institute of Technology.
   * Collaborated on a DST-funded Indo-Italian research project, focusing on ”Multimodal Explainability for Object
