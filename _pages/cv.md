@@ -15,7 +15,7 @@ Education
 
 Research experience
 ======
-*  Jan 2023– Present: Research Intern at Harvard Medical School 
+* Jan 2023– Present: Research Intern at Harvard Medical School 
   * Worked on experiments leveraging Large Language Models (LLMs) to assess Turing 
 test capabilities
   * Executed in-lab experiments utilizing PsiTurk for data collection.
