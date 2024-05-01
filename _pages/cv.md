@@ -28,19 +28,22 @@ with intercranial electrode data.
   * Developed a custom script for extracting and converting annotations to YOLO compatible format
   * Constructed Multimodal machine learning models for object detection and eXplainable Artificial Intelligence (XAI) models, emphasizing feature importance.
 
-* Summer 2015: Research Assistant
-  * Github University
-  * Duties included: Tagging issues
-  * Supervisor: Professor Git
+* Jan 2021-Aug 2023: Undergrad Researcher Symbiosis Centre for Applied AI
+  * Selected as one of the two interns from sophomore students.
+  * Conducted research on Extreme Learning Machine (ELM) models, achieving result comparable to SOTA models in significantly less time.
+  * Explored the effectiveness of EEG for depression detection using the MODMA dataset and Python MNE package.
+ 
+* Jan 2021-Aug 2023: AI Research Intern Avegen Healthcare
+  * Conducted analysis and market survey on sensor mechanisms for affective disorder detection.
+  * Developed multimodal AI models utilizing smartphone sensors for stress and depression detection.
+  * Engineered machine learning and deep learning models using datasets like StudentLife and Depresjon Dataset.
   
 Skills
 ======
-* Skill 1
-* Skill 2
-  * Sub-skill 2.1
-  * Sub-skill 2.2
-  * Sub-skill 2.3
-* Skill 3
+* Languages:Python
+* Frameworks:PyTorch
+* Developer Tools: Google Cloud Platform, Visual Studio, PyCharm
+* Libraries: pandas, NumPy, Matplotlib, SciPy, Torch
 
 Publications
 ======
