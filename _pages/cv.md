@@ -16,6 +16,10 @@ Education
 Research experience
 ======
 *  Jan 2023– Present: Research Intern at Harvard Medical School
+   * Collaborated on a DST-funded Indo-Italian research project, focusing on ”Multimodal Explainability for Object
+ Detection and Image Processing in Drone Imagery.
+  * Developed a custom script for extracting and converting annotations to YOLO compatible format
+  * Constructed Multimodal machine learning models for object detection and eXplainable Artificial Intelligence (XAI) models, emphasizing feature importance.
   * Worked on experiments leveraging Large Language Models (LLMs) to assess Turing 
 test capabilities
   * Executed in-lab experiments utilizing PsiTurk for data collection.
