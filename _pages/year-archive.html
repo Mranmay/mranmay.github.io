@@ -10,20 +10,23 @@ redirect_from:
 {% include base_path %}
 
 <p>
-  Want to post from your phone? Create a new Markdown file in your repository's
-  <code>_posts/</code> folder named <code>YYYY-MM-DD-title.md</code>, paste the template below,
-  and commit it from the GitHub app/mobile browser.
+  Publish from your phone/browser without editing files directly:
 </p>
-<pre><code>---
-title: "Your post title"
-date: 2026-04-24
-permalink: /posts/2026/04/your-post-slug/
-tags:
-  - update
----
-
-Write your post here.
-</code></pre>
+<ul>
+  <li>
+    Use the <strong>Publish Blog Post</strong> GitHub Action form to create a post from your browser.
+  </li>
+  <li>
+    Optional: write in Google Docs first, paste the doc URL in that form, and it will publish to this site.
+  </li>
+</ul>
+{% if site.github.repository_url %}
+<p>
+  <a href="{{ site.github.repository_url }}/actions/workflows/publish-post.yml">
+    Open browser publishing form
+  </a>
+</p>
+{% endif %}
 
 {% capture written_year %}'None'{% endcapture %}
 {% for post in site.posts %}
