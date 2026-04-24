@@ -8,6 +8,23 @@ redirect_from:
 ---
 
 {% include base_path %}
+
+<p>
+  Want to post from your phone? Create a new Markdown file in your repository's
+  <code>_posts/</code> folder named <code>YYYY-MM-DD-title.md</code>, paste the template below,
+  and commit it from the GitHub app/mobile browser.
+</p>
+<pre><code>---
+title: "Your post title"
+date: 2026-04-24
+permalink: /posts/2026/04/your-post-slug/
+tags:
+  - update
+---
+
+Write your post here.
+</code></pre>
+
 {% capture written_year %}'None'{% endcapture %}
 {% for post in site.posts %}
   {% capture year %}{{ post.date | date: '%Y' }}{% endcapture %}
