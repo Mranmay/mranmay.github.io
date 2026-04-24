@@ -1,0 +1,67 @@
+name: Publish Blog Post
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Post title"
+        required: true
+        type: string
+      slug:
+        description: "URL slug (optional)"
+        required: false
+        type: string
+      tags:
+        description: "Comma-separated tags (optional)"
+        required: false
+        type: string
+      publish_date:
+        description: "Date/time in ISO format (optional, UTC used if empty)"
+        required: false
+        type: string
+      content:
+        description: "Post content (optional, used if Google Doc URL is empty)"
+        required: false
+        type: string
+      google_doc_url:
+        description: "Public Google Doc URL (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create post file
+        env:
+          POST_TITLE: ${{ github.event.inputs.title }}
+          POST_SLUG: ${{ github.event.inputs.slug }}
+          POST_TAGS: ${{ github.event.inputs.tags }}
+          POST_DATE: ${{ github.event.inputs.publish_date }}
+          POST_CONTENT: ${{ github.event.inputs.content }}
+          GOOGLE_DOC_URL: ${{ github.event.inputs.google_doc_url }}
+        run: python scripts/publish_post.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add _posts images/blog 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Add blog post: ${{ github.event.inputs.title }}"
+          git push

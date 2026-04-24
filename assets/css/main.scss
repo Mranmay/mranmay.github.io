@@ -39,3 +39,73 @@
 @import "vendor/font-awesome/brands";
 @import "vendor/magnific-popup/magnific-popup";
 @import "print";
+
+/* Custom dark portfolio styling */
+body {
+  background: #0b0b0f;
+  color: #e7e7ea;
+}
+
+.masthead,
+.greedy-nav,
+.page__footer {
+  background: #101014;
+  border-color: #24242b;
+}
+
+.greedy-nav a,
+.site-title,
+.page__footer a,
+.author__urls a {
+  color: #e7e7ea;
+}
+
+.greedy-nav a:hover,
+a:hover {
+  color: #7dd3fc;
+}
+
+a {
+  color: #93c5fd;
+}
+
+.page,
+.archive,
+.page__content,
+.sidebar {
+  background: transparent;
+}
+
+.author__avatar img {
+  border-radius: 14px;
+  border: 2px solid #2b2b35;
+}
+
+.author__content,
+.author__urls-wrapper,
+.archive__item,
+.page__inner-wrap {
+  background: #14141b;
+  border: 1px solid #252530;
+  border-radius: 14px;
+}
+
+.page__inner-wrap {
+  padding: 1.25rem;
+}
+
+.hero-intro h1 {
+  margin-bottom: 0.2rem;
+  letter-spacing: 0.02em;
+}
+
+.hero-intro p {
+  margin-top: 0;
+  color: #c5c5cf;
+  font-size: 1.05rem;
+}
+
+.archive__subtitle,
+h1, h2, h3, h4 {
+  color: #f4f4f5;
+}

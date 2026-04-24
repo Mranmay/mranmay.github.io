@@ -6,6 +6,30 @@ redirect_from:
   - /about.html
 ---
 
-Hi I'm Mranmay Shetty an undergrad researcher interested in biologically-inspired and cognitive-inspired AI interning at Harvard Medical School working on computational models of working memory
+<div class="hero-intro">
+  <h1>Mranmay Shetty</h1>
+  <p>
+    Research intern focused on biologically inspired AI, computational neuroscience,
+    and multimodal machine learning.
+  </p>
+</div>
 
-Previously I worked on Multi-modal and Explainable AI for Object Detection with drone imagery under Dr Rahee Walambe at SCAAI where I did my undergrad thesis and machine learning for affective disorder detection with EEG and activity data at Avegen Healthcare. I also like playing video games in my free time and used to play Call of Duty professionally too at one point and got mentioned in liquipedia for being in one of the top 10 teams in South Asia.
+## Snapshot
+
+- **Current:** Research Intern, Italian Institute of Technology (Center for Neuroscience and Cognitive Systems), Sophia Antipolis, France.
+- **Also:** Research intern/collaborator at Kreiman Lab, Harvard Medical School (remote).
+- **Focus areas:** Dendritic computation, vision neuroscience, large-scale calcium imaging pipelines, and cognitive modeling.
+
+## Selected Experience
+
+- **Italian Institute of Technology (2026–present):** analyzing dendritic-tree level neural recordings and two-photon calcium/glutamate imaging pipelines.
+- **CNRS / INRIA BIOVISION (2025–2026):** large-scale calcium pipeline reproducibility and spatiotemporal motif analysis.
+- **Harvard Medical School — Kreiman Lab (2023–present):** behavioral experiments and computational models of working memory.
+- **SCAAI + collaborators (2022–2023):** multimodal explainability for drone object detection under a DST-funded Indo-Italian research collaboration.
+
+## Education
+
+- **M.S. (expected 2026)** — Modeling for Neuronal and Cognitive Systems, Université Côte d’Azur.
+- **B.Tech. (2023)** — Electronics and Telecommunication Engineering, Symbiosis International University.
+
+For complete details, see the [full CV](/cv/).
