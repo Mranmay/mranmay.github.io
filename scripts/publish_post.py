@@ -11,6 +11,7 @@ import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -22,6 +23,7 @@ def slugify(value: str) -> str:
 
 
 def extract_google_doc_assets(url: str, slug: str, date_slug: str) -> str:
+def google_doc_text(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     match = re.search(r"/document/d/([a-zA-Z0-9_-]+)", parsed.path)
     if not match:
@@ -63,6 +65,12 @@ def extract_google_doc_assets(url: str, slug: str, date_slug: str) -> str:
     if not cleaned:
         raise ValueError("Google Doc export returned empty content.")
     return cleaned
+    export_url = f"https://docs.google.com/document/d/{doc_id}/export?format=txt"
+    with urllib.request.urlopen(export_url, timeout=30) as response:
+        text = response.read().decode("utf-8").strip()
+    if not text:
+        raise ValueError("Google Doc export returned empty content.")
+    return text
 
 
 def parse_date(value: str) -> datetime:
@@ -87,12 +95,16 @@ def main() -> int:
     if doc_url:
         content = extract_google_doc_assets(doc_url, slug, date_slug)
 
+    if doc_url:
+        content = google_doc_text(doc_url)
+
     if not content:
         content = "Write your post here."
 
     tag_list = [tag.strip() for tag in tags_raw.split(",") if tag.strip()]
     tags_yaml = "\n".join([f"  - {tag}" for tag in tag_list]) or "  - update"
 
+    date_slug = date_value.strftime("%Y-%m-%d")
     file_path = Path("_posts") / f"{date_slug}-{slug}.md"
     permalink = f"/posts/{date_value.strftime('%Y/%m')}/{slug}/"
 
