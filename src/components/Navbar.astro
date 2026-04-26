@@ -44,65 +44,77 @@ import { SITE_TITLE, NAV_LINKS as links } from "@/consts";
       }
       <button
         id="theme-toggle"
-        class="theme-toggle transition-all ease-in-out px-2"
+        class="theme-toggle"
         type="button"
-        aria-label="Switch to light mode"
+        aria-label="Toggle color scheme"
+        aria-pressed="false"
         title="Toggle theme"
       >
-        dark
+        <span class="theme-toggle-track">
+          <span class="theme-toggle-thumb">
+            <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          </span>
+        </span>
       </button>
     </div>
   </div>
 </nav>
 
 <script is:inline>
-  const updateLogoState = () => {
-    const logo = document.getElementById("logo");
-    if (!logo) return;
-    if (window.scrollY > 100) {
-      logo.classList.add("is-scrolled");
-    } else {
-      logo.classList.remove("is-scrolled");
-    }
-  };
-
-  const setupThemeToggle = () => {
-    const toggle = document.getElementById("theme-toggle");
-    if (!toggle || toggle.dataset.bound === "true") return;
-    toggle.dataset.bound = "true";
-
-    const syncToggle = () => {
-      const theme = document.documentElement.dataset.theme || "dark";
-      const isLight = theme === "light";
-      toggle.textContent = isLight ? "light" : "dark";
-      toggle.setAttribute(
-        "aria-label",
-        isLight ? "Switch to dark mode" : "Switch to light mode",
-      );
-      toggle.setAttribute("aria-pressed", String(isLight));
+  (() => {
+    const getTheme = () => {
+      const current = document.documentElement.dataset.theme;
+      return current === "light" || current === "dark" ? current : "dark";
     };
 
-    toggle.addEventListener("click", () => {
-      const nextTheme =
-        document.documentElement.dataset.theme === "light" ? "dark" : "light";
-      document.documentElement.dataset.theme = nextTheme;
-      try {
-        localStorage.setItem("theme", nextTheme);
-      } catch {
-        // Ignore storage failures; the active page theme still updates.
+    const updateLogoState = () => {
+      const logo = document.getElementById("logo");
+      if (!logo) return;
+      if (window.scrollY > 100) {
+        logo.classList.add("is-scrolled");
+      } else {
+        logo.classList.remove("is-scrolled");
       }
-      syncToggle();
+    };
+
+    const setToggleUI = (theme) => {
+      const toggle = document.getElementById("theme-toggle");
+      if (!toggle) return;
+      const isLight = theme === "light";
+      toggle.setAttribute("aria-pressed", String(isLight));
+      toggle.setAttribute(
+        "title",
+        isLight ? "Switch to dark mode" : "Switch to light mode",
+      );
+      const icon = toggle.querySelector(".theme-toggle-icon");
+      if (icon) icon.textContent = isLight ? "☀" : "☾";
+    };
+
+    const setupThemeToggle = () => {
+      const toggle = document.getElementById("theme-toggle");
+      if (!toggle) return;
+      if (toggle.dataset.bound !== "true") {
+        toggle.dataset.bound = "true";
+        toggle.addEventListener("click", () => {
+          const nextTheme = getTheme() === "dark" ? "light" : "dark";
+          document.documentElement.dataset.theme = nextTheme;
+          try {
+            localStorage.setItem("theme", nextTheme);
+          } catch {
+            // Ignore storage failures; the active page theme still updates.
+          }
+          setToggleUI(nextTheme);
+        });
+      }
+      setToggleUI(getTheme());
+    };
+
+    window.addEventListener("scroll", updateLogoState);
+    document.addEventListener("astro:page-load", () => {
+      updateLogoState();
+      setupThemeToggle();
     });
-
-    syncToggle();
-  };
-
-  window.addEventListener("scroll", updateLogoState);
-  document.addEventListener("astro:page-load", () => {
     updateLogoState();
     setupThemeToggle();
-  });
-
-  updateLogoState();
-  setupThemeToggle();
+  })();
 </script>

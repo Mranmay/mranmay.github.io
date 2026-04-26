@@ -11,20 +11,13 @@ const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
   <head>
     <script is:inline>
       (() => {
-        let theme = "dark";
         try {
-          const savedTheme = localStorage.getItem("theme");
-          if (savedTheme === "light" || savedTheme === "dark") {
-            theme = savedTheme;
-          } else if (
-            window.matchMedia("(prefers-color-scheme: light)").matches
-          ) {
-            theme = "light";
-          }
+          const saved = localStorage.getItem("theme");
+          const theme = saved === "light" || saved === "dark" ? saved : "dark";
+          document.documentElement.dataset.theme = theme;
         } catch {
-          theme = "dark";
+          document.documentElement.dataset.theme = "dark";
         }
-        document.documentElement.dataset.theme = theme;
       })();
     </script>
     <BaseHead title={title} description={description} />
