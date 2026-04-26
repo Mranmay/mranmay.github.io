@@ -1,31 +1,32 @@
 ---
+// The public gist contains an R script that generates an ASCII-style brain.
+// This local text version keeps the same dense character-map spirit without hotlinking.
 const brain = String.raw`
-                __---~~~~--__                       __--~~~~---__
-             _-~              ~-_                 _-~              ~-_
-           _-                    -_             _-                    -_
-          /   __--~~~~--__         \           /         __--~~~~--__   \
-         /  _~            ~-_       |         |       _-~            ~_  \
-        /  /   _--~~~~--_   \      |         |      /   _--~~~~--_   \  \
-       |  |   /          \   |     |         |     |   /          \   |  |
-       |  |  |  _--~~--_  |  |     |         |     |  |  _--~~--_  |  |  |
-       |  |  | /        \ |  |     |         |     |  | /        \ |  |  |
-        \  \  \__      __/  /     /           \     \  \__      __/  /  /
-         \  ~-_  ~----~  _-~    _/             \_    ~-_  ~----~  _-~  /
-          -_   ~--____--~     _-                 -_     ~--____--~   _-
-            ~-_            _-~    .--.     .--.    ~-_            _-~
-               ~--______--~      /    \___/    \      ~--______--~
-                    |           /   /\     /\   \           |
-                    |          |   /  \___/  \   |          |
-                    |          |  |  _     _  |  |          |
-                    |           \  \_\_____/  /  /          |
-                     \           ~-_       _-~           /
-                      ~-_           ~-----~           _-~
-                         ~--__                 __--~
-                              ~---_________---~
+          .+oo+:-....................................-:+oo+.
+       ./dMMMMMMNmdhyo/:-....................-:/oyhdmNMMMMMMd/.
+      /NMMMMMMMMMMMMMMMMNmdyo:............:oydmNMMMMMMMMMMMMMMMMN/
+    .hMMMMMMMMMMMMMMMMMMMMMMMMmy........ymMMMMMMMMMMMMMMMMMMMMMMMMh.
+    yMMMMMMMMMMMMMMMMMMMMMMMMMMMm:....:mMMMMMMMMMMMMMMMMMMMMMMMMMMMy
+   /MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM+..+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMM/
+   hMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN--NMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMh
+  .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMddMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.
+  .MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM.
+   hMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMh
+   :MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM:
+    yMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMy
+    .hMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMh.
+      /NMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMN/
+       ./dMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMd/.
+          .+oo+:-....................................-:+oo+.
+              .-:/oossssyyyyyhhhhhhhhhhhhyyyyyssssoo/:-.
+                    ...---::::////////////::::---...
 `;
 ---
 
-<div class="hidden justify-end lg:flex" aria-hidden="true">
+<div
+  class="grid place-items-center overflow-x-auto px-3 sm:justify-start"
+  aria-hidden="true"
+>
   <pre
-    class="font-terminal max-w-full select-none overflow-hidden whitespace-pre text-[11px] leading-[0.95] text-white/70 xl:text-[12px]">{brain.trimEnd()}</pre>
+    class="brightness-200 w-full min-w-[34rem] max-w-[44rem] scale-[0.62] select-none whitespace-pre text-[10px] leading-[0.9] text-white/80 sm:min-w-0 sm:scale-90 md:scale-100 md:text-[11px]">{brain.trimEnd()}</pre>
 </div>

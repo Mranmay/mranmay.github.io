@@ -1,81 +1,78 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import Section from "@/components/Section.astro";
 import { FULL_NAME } from "@/consts";
 
-const manuscripts = [
-  "MICRONS receptive-field-centered pyramidal connectivity analysis — in preparation",
-  "Calcium imaging / spike deconvolution benchmarking — project in development",
+const publications = [
+  {
+    title:
+      "Ensemble learning and EigenCAM-based feature analysis for improving the performance and explainability of object detection in drone imagery",
+    authors:
+      "Gargi Joshi, Amey Joshi, Mranmay Shetty, Rahee Walambe, Ketan Kotecha, Fabio Scotti, Vincenzo Piuri",
+    venue: "Discover Applied Sciences, 2025",
+  },
+  {
+    title: "Human or Machine? Turing Tests for Language Tasks",
+    authors:
+      "Mengmi Zhang, Giorgia Dellaferrera, Ankur Sikarwar, Marcelo Armendariz, Noga Mudrik, Prachi Agrawal, Spandan Madan, Mranmay Shetty, Andrei Barbu, Hanspeter Pfister, Gabriel Kreiman, and others",
+    venue: "Nature Human Behaviour, 2026",
+  },
 ];
 
-const presentations = [
-  "MICRONS layer-specific pyramidal input density analysis — internal presentation / lab discussion",
-  "EBRAINS occluded natural scene analysis — course project",
-];
-
-const projects = [
-  "MICRONS connectivity and RF-centered input maps",
-  "Working memory attractor-model benchmarking",
-  "Calcium imaging and spike deconvolution benchmarking",
-  "Occluded natural scene response analysis",
+const inReview = [
+  {
+    title:
+      "From Neural Signals to Images: Generative Reconstruction of Visual Stimuli from Electroencephalography Signals",
+    authors:
+      "Rahee Walambe, Akshay Kushwaha, Divya Shah, Mranmay Shetty, Vaibhav Tasgaonkar, Ketan Kotecha, Sultan Alfarhood",
+    venue: "Submitted — under review",
+  },
+  {
+    title:
+      "Machine Learning-Powered Depression Detection: Leveraging Digital Biomarkers for Enhanced Diagnosis and Future Prospects",
+    authors:
+      "Rahee Walambe, Anil Rahate, Rajanikant Ghate, Vaibhav Tasgaonkar, Mranmay Shetty, Sumiti Saharan, Nayan Kalnad, Ketan Kotecha, Ajith Abraham, Ganesashree Selvachandran",
+    venue: "Submitted — under review",
+  },
 ];
 ---
 
 <Layout
   title={`Publications | ${FULL_NAME}`}
-  description="Publications, manuscripts, presentations, and research projects by Mranmay Shetty."
+  description="Publications and in-review work by Mranmay Shetty."
 >
-  <div class="mx-auto max-w-5xl px-6 py-12 md:py-16">
-    <header class="border-b border-white/10 pb-10">
-      <p class="font-terminal text-sm text-white/55">research output</p>
-      <h1 class="font-terminal mt-4 text-5xl md:text-7xl">
-        &lt;Publications /&gt;
-      </h1>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-white/72">
-        A concise record of formal publications, work in preparation,
-        presentations, and current research projects.
+  <Section title="Publications">
+    <div class="mx-auto max-w-5xl">
+      <p class="mb-8 text-center text-lg text-white/80">
+        Unpublished and in-review work is listed separately from published
+        papers.
       </p>
-    </header>
 
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">&lt;Publications /&gt;</h2>
-      <p class="mt-7 leading-7 text-white/72">
-        No peer-reviewed publications are listed yet. Current work is organized
-        below as manuscripts in preparation, presentations, and research
-        projects.
-      </p>
-    </section>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Preprints / Manuscripts in preparation /&gt;
-      </h2>
-      <ul class="mt-7 space-y-3 leading-7 text-white/75">
-        {manuscripts.map((item) => <li>{item}</li>)}
-      </ul>
-    </section>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Posters &amp; Presentations /&gt;
-      </h2>
-      <ul class="mt-7 space-y-3 leading-7 text-white/75">
-        {presentations.map((item) => <li>{item}</li>)}
-      </ul>
-    </section>
-
-    <section class="py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Research Projects /&gt;
-      </h2>
-      <div class="mt-7 grid gap-4 md:grid-cols-2">
+      <h2 class="mb-5 text-3xl">Journal &amp; Conference Papers:</h2>
+      <div class="space-y-5">
         {
-          projects.map((project) => (
-            <article class="rounded-md border border-white/15 bg-white/[0.025] p-5">
-              <p class="leading-7 text-white/75">{project}</p>
+          publications.map((item) => (
+            <article class="border-2 border-white p-5">
+              <h3 class="text-2xl">{item.title}</h3>
+              <p class="mt-3 text-white/80">{item.authors}</p>
+              <p class="mt-3 text-white/65">{item.venue}</p>
             </article>
           ))
         }
       </div>
-    </section>
-  </div>
+
+      <h2 class="mb-5 mt-12 text-3xl">In Review:</h2>
+      <div class="space-y-5">
+        {
+          inReview.map((item) => (
+            <article class="border-2 border-white p-5">
+              <h3 class="text-2xl">{item.title}</h3>
+              <p class="mt-3 text-white/80">{item.authors}</p>
+              <p class="mt-3 text-white/65">{item.venue}</p>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </Section>
 </Layout>

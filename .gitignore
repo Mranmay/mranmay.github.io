@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # local agent/runtime markers
 .codex
+
+# local reference copy, not deployed site source
+token-template-refer/

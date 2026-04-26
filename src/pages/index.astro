@@ -2,81 +2,43 @@
 import Hero from "@/components/Hero.astro";
 import Section from "@/components/Section.astro";
 import Layout from "@/layouts/Layout.astro";
-import { FULL_NAME, PROFILE_LINKS, QUOTE, SITE_DESCRIPTION } from "@/consts";
-
-const researchInterests = [
-  "Neuro-AI",
-  "Computational neuroscience",
-  "Visual cortex",
-  "Connectomics",
-  "Receptive fields",
-  "Working memory",
-  "Dynamical systems",
-  "Calcium imaging",
-  "Biologically grounded machine learning",
-];
-
-const selectedProjects = [
-  "MICRONS pyramidal connectivity and receptive-field-centered input maps",
-  "Working memory / attractor-model benchmarking with Gabriel Kreiman's lab",
-  "Calcium imaging and spike deconvolution benchmarking using Allen Brain Observatory-style datasets",
-  "Occluded natural scene analysis using EBRAINS-hosted data",
-];
+import {
+  ABOUT_ME,
+  FULL_NAME,
+  PROFILE_LINKS,
+  QUOTE,
+  SITE_DESCRIPTION,
+} from "@/consts";
 ---
 
 <Layout title={`${FULL_NAME} | ${QUOTE}`} description={SITE_DESCRIPTION}>
   <Hero />
-  <Section title="Currently" className="border-b border-white/10">
-    <div class="space-y-5 text-lg leading-8 text-white/75">
-      <p>
-        MSc Modeling for Neuronal and Cognitive Systems, Université Côte d'Azur.
-      </p>
-      <p>
-        Research projects spanning MICRONS connectomics,
-        receptive-field-centered cortical connectivity, working memory models,
-        and calcium imaging / spike deconvolution.
-      </p>
-    </div>
-  </Section>
-
-  <Section title="Research interests" className="border-b border-white/10">
-    <div class="flex flex-wrap gap-3">
-      {
-        researchInterests.map((interest) => (
-          <span class="font-terminal rounded-md border border-white/20 px-3 pb-1 pt-2 text-sm text-white/75">
-            {interest}
-          </span>
-        ))
-      }
-    </div>
-  </Section>
-
-  <Section title="Selected projects" className="border-b border-white/10">
-    <div class="grid gap-4 md:grid-cols-2">
-      {
-        selectedProjects.map((project) => (
-          <article class="rounded-md border border-white/15 bg-white/[0.025] p-5">
-            <p class="leading-7 text-white/78">{project}</p>
-          </article>
-        ))
-      }
+  <Section title="About Me">
+    <div class="w-full grid place-items-center">
+      <div
+        class="max-w-4xl text-xl md:text-lg opacity-90 text-center justify-evenly leading-8"
+      >
+        <p>{ABOUT_ME}</p>
+      </div>
     </div>
   </Section>
 
   <Section title="Links">
-    <div class="flex flex-wrap gap-3">
-      {
-        PROFILE_LINKS.map((link) => (
-          <a
-            href={link.href}
-            class="font-terminal rounded-md border border-white/25 px-4 pb-1 pt-2 text-white/80 transition-colors hover:bg-white hover:text-black"
-            target={link.href.startsWith("http") ? "_blank" : undefined}
-            rel={link.href.startsWith("http") ? "noreferrer" : undefined}
-          >
-            {link.label}
-          </a>
-        ))
-      }
+    <div class="w-full grid place-items-center">
+      <div class="flex flex-wrap justify-center gap-4 text-xl md:text-2xl">
+        {
+          PROFILE_LINKS.map((link) => (
+            <a
+              href={link.href}
+              class="px-2 transition-all ease-in-out hover:bg-white hover:text-black"
+              target={link.href.startsWith("http") ? "_blank" : undefined}
+              rel={link.href.startsWith("http") ? "noreferrer" : undefined}
+            >
+              [{link.label}]
+            </a>
+          ))
+        }
+      </div>
     </div>
   </Section>
 </Layout>

@@ -1,30 +1,33 @@
 ---
 import AsciiBrain from "@/components/AsciiBrain.astro";
-import { ABOUT_ME, FULL_NAME, QUOTE } from "@/consts";
+import { FULL_NAME, QUOTE } from "@/consts";
 ---
 
-<section class="relative !z-[20] w-full border-b border-white/10" id="hero">
-  <div
-    class="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr]"
-  >
-    <div>
-      <p class="font-terminal mb-4 text-sm text-white/55">research site</p>
-      <h1 class="font-terminal text-5xl leading-tight md:text-7xl">
-        {`<${FULL_NAME} />`}
-      </h1>
-      <h2
-        class="mt-5 max-w-3xl text-xl leading-relaxed text-white/80 md:text-2xl"
-      >
+<div class="hero-bg hidden md:block h-screen hero-bg-animate absolute top-0">
+</div>
+<section
+  class="h-screen !z-[20] relative w-full grid grid-cols-1 grid-rows-1 sm:grid-cols-2 md:grid-cols-2 gap-4 items-center"
+  id="hero"
+>
+  <div class="grid place-items-center">
+    <div class="text-center -mt-10 px-4">
+      <h1 class="font-bold text-5xl md:text-7xl">{`<${FULL_NAME} />`}</h1>
+      <h2 class="text-2xl opacity-95">
         {QUOTE}
       </h2>
-      <p class="mt-8 max-w-2xl text-base leading-8 text-white/70 md:text-lg">
-        {ABOUT_ME}
-      </p>
-      <p class="mt-5 max-w-2xl text-base leading-8 text-white/70 md:text-lg">
-        Currently, I work on MICRONS-based analyses of pyramidal connectivity,
-        receptive-field structure, and layer-specific cortical organization.
-      </p>
     </div>
-    <AsciiBrain />
   </div>
+  <AsciiBrain />
 </section>
+
+<script is:inline>
+  const hero_bg = document.querySelector(".hero-bg-animate");
+
+  setInterval(() => {
+    let binaryText = "";
+    for (let i = 0; i < 1000; i++) {
+      binaryText += Math.floor(Math.random() * 2).toString();
+    }
+    hero_bg.textContent = binaryText;
+  }, 300);
+</script>

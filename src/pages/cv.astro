@@ -1,186 +1,219 @@
 ---
 import Layout from "@/layouts/Layout.astro";
+import Section from "@/components/Section.astro";
 import { FULL_NAME } from "@/consts";
 
 const education = [
   {
-    period: "Current",
-    title: "MSc, Modeling for Neuronal and Cognitive Systems",
-    place: "Université Côte d'Azur, France",
-    description:
-      "Focus: computational neuroscience, neural data analysis, modeling, machine learning, and systems neuroscience.",
+    place:
+      "École Polytechnique de l'Université Côte d'Azur, Sophia-Antipolis, France",
+    degree: "M.S. in Modeling for Neuronal and Cognitive Systems",
+    date: "Sep 2024 – Aug 2026 expected",
   },
   {
-    period: "Undergraduate",
-    title: "Electronics and Telecommunication Engineering",
-    place: "Undergraduate background",
-    description:
-      "Focus: applied AI, signal processing, programming, and engineering systems.",
+    place: "Symbiosis International University, Pune, India",
+    degree: "B.Tech. in Electronics and Tele-communication Engineering",
+    date: "Aug 2019 – Jun 2023",
   },
 ];
 
 const researchExperience = [
   {
-    period: "Current",
-    title: "Federico Rossi Lab / IIT CNCS Rovereto",
-    description:
-      "MICRONS connectomics and receptive-field-centered cortical connectivity analysis. Analyzing layer-specific pyramidal connectivity, synapse density maps, soma alignment controls, and visual-field RF relationships.",
+    role: "Research Intern",
+    place:
+      "Italian Institute of Technology, Center for Neuroscience and Cognitive Systems",
+    date: "Mar 2026 – ongoing",
+    bullets: [
+      "Investigating rules of dendritic connectivity and compartment-specific visual processing using the MICRONS functional connectomics dataset and whole-dendritic-tree synaptic recordings.",
+      "Developing analysis pipelines for two-photon calcium / glutamate imaging, neuronal morphology and connectivity reconstruction, and computational models of dendritic and circuit mechanisms in visual cortex.",
+    ],
   },
   {
-    period: "Project",
-    title: "Gabriel Kreiman Lab / Harvard",
-    description:
-      "Working memory and attractor-model benchmarking. Modeling memory-guided behavior and comparing neural-network-style models with cognitive / dynamical-systems hypotheses.",
+    role: "Research Intern",
+    place: "CNRS - INT Marseille and INRIA - BIOVISION",
+    date: "Sep 2025 – Feb 2026",
+    bullets: [
+      "Building a reproducible pipeline for large-scale two-photon calcium imaging and benchmarking analysis packages such as Suite2p, CaImAn, and CASCADE.",
+      "Extracting spatiotemporal spiking motifs and population codes to relate motifs to stimuli and behavior.",
+    ],
   },
   {
-    period: "Planned",
-    title: "Laurent Perrinet / CNRS-INT Marseille",
-    description:
-      "Planned project on unsupervised extraction of spiking motifs in two-photon data. Interest in Allen Brain Observatory datasets, calcium imaging, spike deconvolution, and motif discovery.",
+    role: "Research Intern / Collaborator",
+    place: "Harvard Medical School - Kreiman Lab",
+    date: "Jan 2023 – present",
+    bullets: [
+      "Joined as a remote research intern running experiments using large language models to assess Turing-test-style language capabilities.",
+      "Executed online behavioral experiments using PsiTurk for data collection.",
+      "Continuing part-time remote collaboration developing computational models of working memory.",
+    ],
   },
   {
-    period: "Earlier",
-    title: "Applied AI projects",
-    description:
-      "StudentLife-style multimodal stress/depression modeling. Explainability for object detection in drone imagery.",
+    role: "Research Intern",
+    place: "INRIA - BIOVISION Team",
+    date: "Mar 2025 – May 2025",
+    bullets: [
+      "Reviewed literature on the retina and artificial intelligence models that attempt to mimic retinal behavior.",
+      "Synthesized findings across studies to understand the state of the art in using AI to model and understand retinal processing.",
+    ],
+  },
+  {
+    role: "DST Funded Researcher",
+    place:
+      "University of Milan, Italy and Symbiosis Institute of Technology, India",
+    date: "Jun 2022 – Jun 2023",
+    bullets: [
+      "Collaborated on a DST-funded Indo-Italian research project on multimodal explainability for object detection and image processing in drone imagery.",
+      "Built multimodal machine-learning models for object detection and explainable AI models emphasizing feature importance.",
+    ],
+  },
+  {
+    role: "Artificial Intelligence Research Intern",
+    place: "Avegen Healthcare",
+    date: "Jan 2022 – Jun 2022",
+    bullets: [
+      "Conducted analysis and market survey on sensor mechanisms for affective-disorder detection.",
+      "Developed multimodal AI models using smartphone sensors for stress and depression detection.",
+      "Engineered machine-learning and deep-learning models using datasets such as StudentLife and Depresjon.",
+    ],
+  },
+  {
+    role: "Undergraduate Researcher",
+    place: "Symbiosis Centre for Applied AI, Pune, India",
+    date: "Jan 2021 – Jan 2024",
+    bullets: [
+      "Selected as one of two interns from sophomore students.",
+      "Worked on Extreme Learning Machine models with competitive performance and reduced training time.",
+      "Explored EEG-based depression detection using the MODMA dataset and MNE-Python.",
+      "Assisted in collecting EEG data to natural stimuli for GAN-based reconstruction of images from neural data.",
+    ],
   },
 ];
 
-const selectedProjects = [
-  "MICRONS pyramidal connectivity and receptive-field-centered input maps",
-  "Working memory / attractor-model benchmarking",
-  "Calcium imaging and spike deconvolution benchmarking",
-  "Occluded natural scene response analysis",
+const skills = [
+  {
+    title: "Programming",
+    text: "Python, R, MATLAB, JavaScript / TypeScript basics",
+  },
+  {
+    title: "Machine Learning",
+    text: "PyTorch, classical machine learning, deep learning, representation analysis",
+  },
+  {
+    title: "Neurodata / Analysis",
+    text: "Suite2p, CaImAn, CASCADE, MNE-Python, MICRONS, CAVEclient, calcium imaging, spike deconvolution, connectomics",
+  },
+  {
+    title: "Tools & Platforms",
+    text: "Git, Linux / Ubuntu, Jupyter, Google Cloud Platform, Visual Studio Code, PyCharm",
+  },
 ];
 
-const skillGroups = [
+const miscellaneous = [
   {
-    label: "Languages",
-    items: "Python, R, MATLAB, JavaScript/TypeScript basics",
+    title: "Scholarships & Awards",
+    date: "",
+    bullets: [
+      "Neuromod Excellence Scholarship 2025: excellence scholarship awarded to top first-year students by the Neuromod Institute.",
+      "Master Mobility Scholarship Program 2026: awarded to second-year Master's students undertaking an internship abroad, based on excellence, project quality, and financial need.",
+    ],
   },
   {
-    label: "Scientific Python",
-    items: "NumPy, Pandas, Matplotlib, SciPy",
+    title: "Graphic Design Volunteer",
+    place: "IGiftLife",
+    date: "Jan 2022 – May 2022",
+    bullets: [
+      "Created social media posts to raise awareness about organ donation in India.",
+      "Designed content series such as Historical Facts, Heartwarming Headlines, Religions on Organ Donation, and Key Stats.",
+      "Curated content to spread awareness and counter myths related to organ donation.",
+    ],
   },
   {
-    label: "Neuroscience tools/data",
-    items:
-      "MICRONS, CAVEclient, calcium imaging, spike deconvolution, connectomics",
-  },
-  {
-    label: "Machine learning",
-    items: "PyTorch basics, classical ML, representation analysis",
-  },
-  {
-    label: "Other",
-    items: "Git, Linux/Ubuntu, Jupyter, VS Code",
+    title: "Professional E-Athlete",
+    place: "Various Esports Organizations",
+    date: "Oct 2019 – Dec 2020",
+    bullets: [
+      "Played Call of Duty and PUBG competitively for different teams.",
+      "Finished last season as part of one of the top 10 teams in South Asia and was mentioned on Liquipedia.",
+    ],
   },
 ];
 ---
 
-<Layout
-  title={`CV | ${FULL_NAME}`}
-  description="Academic CV for Mranmay Shetty."
->
-  <div class="mx-auto max-w-5xl px-6 py-12 md:py-16">
-    <header class="border-b border-white/10 pb-10">
-      <p class="font-terminal text-sm text-white/55">academic profile</p>
-      <h1 class="font-terminal mt-4 text-5xl md:text-7xl">&lt;CV /&gt;</h1>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-white/72">
-        MSc student working across computational neuroscience, connectomics,
-        visual cortex, and biologically grounded AI.
-      </p>
-    </header>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">&lt;Education /&gt;</h2>
-      <div class="mt-7 space-y-7">
-        {
-          education.map((item) => (
-            <article class="grid gap-3 md:grid-cols-[9rem_1fr]">
-              <p class="font-terminal text-sm text-white/45">{item.period}</p>
-              <div>
-                <h3 class="text-xl font-semibold text-white">{item.title}</h3>
-                <p class="mt-1 text-white/65">{item.place}</p>
-                <p class="mt-3 leading-7 text-white/72">{item.description}</p>
-              </div>
-            </article>
-          ))
-        }
-      </div>
-    </section>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Research Experience /&gt;
-      </h2>
-      <div class="mt-7 space-y-7">
-        {
-          researchExperience.map((item) => (
-            <article class="grid gap-3 md:grid-cols-[9rem_1fr]">
-              <p class="font-terminal text-sm text-white/45">{item.period}</p>
-              <div>
-                <h3 class="text-xl font-semibold text-white">{item.title}</h3>
-                <p class="mt-3 leading-7 text-white/72">{item.description}</p>
-              </div>
-            </article>
-          ))
-        }
-      </div>
-    </section>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Selected Projects /&gt;
-      </h2>
-      <ul class="mt-7 grid gap-3 md:grid-cols-2">
-        {
-          selectedProjects.map((project) => (
-            <li class="rounded-md border border-white/15 bg-white/[0.025] p-4 leading-7 text-white/75">
-              {project}
-            </li>
-          ))
-        }
-      </ul>
-    </section>
-
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Technical Skills /&gt;
-      </h2>
-      <div class="mt-7 space-y-4">
-        {
-          skillGroups.map((group) => (
-            <div class="grid gap-2 md:grid-cols-[13rem_1fr]">
-              <p class="font-terminal text-white/55">{group.label}</p>
-              <p class="leading-7 text-white/75">{group.items}</p>
+<Layout title={`CV | ${FULL_NAME}`} description="Web CV for Mranmay Shetty.">
+  <Section title="Education">
+    <div class="mx-auto max-w-5xl space-y-6">
+      {
+        education.map((item) => (
+          <article class="grid gap-2 border-2 border-white p-5 md:grid-cols-[1fr_14rem]">
+            <div>
+              <h2 class="text-2xl">{item.degree}</h2>
+              <p class="mt-2 text-white/80">{item.place}</p>
             </div>
-          ))
-        }
-      </div>
-    </section>
+            <p class="text-left text-white/70 md:text-right">{item.date}</p>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
 
-    <section class="border-b border-white/10 py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Presentations / Posters /&gt;
-      </h2>
-      <ul class="mt-7 space-y-3 leading-7 text-white/75">
-        <li>
-          MICRONS layer-specific pyramidal input density analysis, internal
-          presentation / lab discussion.
-        </li>
-        <li>EBRAINS occluded natural scene analysis, course project.</li>
-      </ul>
-    </section>
+  <Section title="Research Experience">
+    <div class="mx-auto max-w-5xl space-y-6">
+      {
+        researchExperience.map((item) => (
+          <article class="border-2 border-white p-5">
+            <div class="grid gap-2 md:grid-cols-[1fr_14rem]">
+              <div>
+                <h2 class="text-2xl">{item.role}</h2>
+                <p class="mt-2 text-white/80">{item.place}</p>
+              </div>
+              <p class="text-left text-white/70 md:text-right">{item.date}</p>
+            </div>
+            <ul class="mt-5 list-disc space-y-3 pl-6 text-white/85">
+              {item.bullets.map((bullet) => (
+                <li>{bullet}</li>
+              ))}
+            </ul>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
 
-    <section class="py-10">
-      <h2 class="font-terminal text-3xl md:text-4xl">
-        &lt;Awards / Other /&gt;
-      </h2>
-      <p class="mt-7 leading-7 text-white/72">
-        Additional awards, fellowships, coursework, and service can be added
-        here as the CV grows.
-      </p>
-    </section>
-  </div>
+  <Section title="Technical Skills">
+    <div class="mx-auto max-w-5xl grid gap-4 md:grid-cols-2">
+      {
+        skills.map((skill) => (
+          <article class="border-2 border-white p-5">
+            <h2 class="text-2xl">{skill.title}</h2>
+            <p class="mt-3 text-white/85">{skill.text}</p>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
+
+  <Section title="Miscellaneous">
+    <div class="mx-auto max-w-5xl space-y-6">
+      {
+        miscellaneous.map((item) => (
+          <article class="border-2 border-white p-5">
+            <div class="grid gap-2 md:grid-cols-[1fr_14rem]">
+              <div>
+                <h2 class="text-2xl">{item.title}</h2>
+                {item.place && <p class="mt-2 text-white/80">{item.place}</p>}
+              </div>
+              {item.date && (
+                <p class="text-left text-white/70 md:text-right">{item.date}</p>
+              )}
+            </div>
+            <ul class="mt-5 list-disc space-y-3 pl-6 text-white/85">
+              {item.bullets.map((bullet) => (
+                <li>{bullet}</li>
+              ))}
+            </ul>
+          </article>
+        ))
+      }
+    </div>
+  </Section>
 </Layout>
