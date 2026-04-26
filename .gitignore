@@ -28,6 +28,3 @@ pnpm-debug.log*
 
 # local reference copy, not deployed site source
 token-template-refer/
-
-# Local reference copy - do not upload
-token-template-refer/
