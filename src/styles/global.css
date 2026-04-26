@@ -58,19 +58,19 @@ img,
   display: flex;
   justify-content: center;
   align-items: center;
-  width: min(54vw, 940px);
-  max-width: 940px;
+  width: min(58vw, 980px);
+  max-width: 980px;
   margin: 0 auto;
 }
 
 .ascii-brain-img {
   width: 100%;
   height: auto;
-  max-height: 84vh;
+  max-height: 88vh;
   object-fit: contain;
-  opacity: 0.88;
+  opacity: 0.9;
   image-rendering: auto;
-  filter: grayscale(1) contrast(1.08);
+  filter: grayscale(1) contrast(1.04);
 }
 
 @media (max-width: 639px) {
