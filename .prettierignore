@@ -6,3 +6,4 @@ dist
 .astro
 fonts
 token-template-refer
+src/data/brainArt.ts

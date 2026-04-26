@@ -55,33 +55,44 @@ img,
 }
 
 .ascii-brain-wrap {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: min(58vw, 980px);
+  width: min(60vw, 980px);
   max-width: 980px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
   margin: 0 auto;
 }
 
-.ascii-brain-img {
-  width: 100%;
-  height: auto;
-  max-height: 88vh;
-  object-fit: contain;
-  opacity: 0.9;
-  image-rendering: auto;
-  filter: grayscale(1) contrast(1.04);
+.ascii-brain-pre {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-family:
+    "DejaVu Sans Mono", "Noto Sans Mono", "Courier New", ui-monospace,
+    monospace;
+  font-size: clamp(6px, 0.62vw, 10px);
+  line-height: 1.02;
+  letter-spacing: 0;
+  white-space: pre;
+  text-align: left;
+  transform: scale(1.15);
+  transform-origin: center;
+  user-select: none;
+  pointer-events: none;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 900px) {
   .ascii-brain-wrap {
-    width: 96vw;
-    max-width: 96vw;
-    margin-top: -2.5rem;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-inline: 1rem;
   }
 
-  .ascii-brain-img {
-    max-height: 46vh;
+  .ascii-brain-pre {
+    font-size: clamp(4px, 1.15vw, 8px);
+    transform: none;
   }
 }
 
