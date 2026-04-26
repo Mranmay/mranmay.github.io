@@ -54,6 +54,37 @@ img,
   user-select: none;
 }
 
+.ascii-brain-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: min(48vw, 760px);
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.ascii-brain-img {
+  width: 100%;
+  height: auto;
+  max-height: 74vh;
+  object-fit: contain;
+  opacity: 0.9;
+  image-rendering: auto;
+  filter: grayscale(1) contrast(1.15);
+}
+
+@media (max-width: 639px) {
+  .ascii-brain-wrap {
+    width: 90vw;
+    max-width: 90vw;
+    margin-top: -3rem;
+  }
+
+  .ascii-brain-img {
+    max-height: 42vh;
+  }
+}
+
 .blog-content figure {
   margin: 2.5rem 0;
 }
