@@ -58,30 +58,30 @@ img,
   display: flex;
   justify-content: center;
   align-items: center;
-  width: min(48vw, 760px);
-  max-width: 760px;
+  width: min(54vw, 940px);
+  max-width: 940px;
   margin: 0 auto;
 }
 
 .ascii-brain-img {
   width: 100%;
   height: auto;
-  max-height: 74vh;
+  max-height: 84vh;
   object-fit: contain;
-  opacity: 0.9;
+  opacity: 0.88;
   image-rendering: auto;
-  filter: grayscale(1) contrast(1.15);
+  filter: grayscale(1) contrast(1.08);
 }
 
 @media (max-width: 639px) {
   .ascii-brain-wrap {
-    width: 90vw;
-    max-width: 90vw;
-    margin-top: -3rem;
+    width: 96vw;
+    max-width: 96vw;
+    margin-top: -2.5rem;
   }
 
   .ascii-brain-img {
-    max-height: 42vh;
+    max-height: 46vh;
   }
 }
 
