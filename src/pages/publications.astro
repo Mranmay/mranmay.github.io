@@ -1,0 +1,81 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { FULL_NAME } from "@/consts";
+
+const manuscripts = [
+  "MICRONS receptive-field-centered pyramidal connectivity analysis — in preparation",
+  "Calcium imaging / spike deconvolution benchmarking — project in development",
+];
+
+const presentations = [
+  "MICRONS layer-specific pyramidal input density analysis — internal presentation / lab discussion",
+  "EBRAINS occluded natural scene analysis — course project",
+];
+
+const projects = [
+  "MICRONS connectivity and RF-centered input maps",
+  "Working memory attractor-model benchmarking",
+  "Calcium imaging and spike deconvolution benchmarking",
+  "Occluded natural scene response analysis",
+];
+---
+
+<Layout
+  title={`Publications | ${FULL_NAME}`}
+  description="Publications, manuscripts, presentations, and research projects by Mranmay Shetty."
+>
+  <div class="mx-auto max-w-5xl px-6 py-12 md:py-16">
+    <header class="border-b border-white/10 pb-10">
+      <p class="font-terminal text-sm text-white/55">research output</p>
+      <h1 class="font-terminal mt-4 text-5xl md:text-7xl">
+        &lt;Publications /&gt;
+      </h1>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-white/72">
+        A concise record of formal publications, work in preparation,
+        presentations, and current research projects.
+      </p>
+    </header>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">&lt;Publications /&gt;</h2>
+      <p class="mt-7 leading-7 text-white/72">
+        No peer-reviewed publications are listed yet. Current work is organized
+        below as manuscripts in preparation, presentations, and research
+        projects.
+      </p>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Preprints / Manuscripts in preparation /&gt;
+      </h2>
+      <ul class="mt-7 space-y-3 leading-7 text-white/75">
+        {manuscripts.map((item) => <li>{item}</li>)}
+      </ul>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Posters &amp; Presentations /&gt;
+      </h2>
+      <ul class="mt-7 space-y-3 leading-7 text-white/75">
+        {presentations.map((item) => <li>{item}</li>)}
+      </ul>
+    </section>
+
+    <section class="py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Research Projects /&gt;
+      </h2>
+      <div class="mt-7 grid gap-4 md:grid-cols-2">
+        {
+          projects.map((project) => (
+            <article class="rounded-md border border-white/15 bg-white/[0.025] p-5">
+              <p class="leading-7 text-white/75">{project}</p>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+  </div>
+</Layout>

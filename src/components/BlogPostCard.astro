@@ -1,0 +1,61 @@
+---
+type Props = {
+  title: string;
+  slug: string;
+  excerpt: string;
+  date: Date;
+};
+
+const { title, slug, excerpt, date } = Astro.props;
+---
+
+<div
+  class="relative mx-auto w-full overflow-hidden rounded-md border border-white/20 bg-white/[0.025] pb-5"
+>
+  <div
+    class="flex items-center justify-start border-b border-white/15 px-4 py-2"
+  >
+    <div class="flex space-x-2">
+      <div class="h-2.5 w-2.5 rounded-full bg-white/70"></div>
+      <div class="h-2.5 w-2.5 rounded-full bg-white/45"></div>
+      <div class="h-2.5 w-2.5 rounded-full bg-white/25"></div>
+    </div>
+  </div>
+
+  <div class="p-6">
+    <a href={`/blog/${slug}`} class="block group">
+      <h2 class="font-terminal mb-2 text-xl text-white">
+        <span class="mr-2 text-white/55">/</span>
+        {title}
+      </h2>
+      <p class="font-terminal mb-4 text-sm text-white/55">
+        [{
+          date.toLocaleDateString("en-us", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          })
+        }]
+      </p>
+      <p class="mb-4 line-clamp-2 text-sm leading-6 text-white/70">{excerpt}</p>
+      <p
+        class="font-terminal absolute bottom-4 inline-flex items-center text-sm text-white transition-all ease-in-out group-hover:underline"
+      >
+        Read more
+        <svg
+          class="ml-2 h-4 w-4 transform transition-transform group-hover:translate-x-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width={2}
+            d="M9 5l7 7-7 7"></path>
+        </svg>
+      </p>
+    </a>
+  </div>
+</div>

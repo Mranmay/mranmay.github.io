@@ -1,0 +1,186 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { FULL_NAME } from "@/consts";
+
+const education = [
+  {
+    period: "Current",
+    title: "MSc, Modeling for Neuronal and Cognitive Systems",
+    place: "Université Côte d'Azur, France",
+    description:
+      "Focus: computational neuroscience, neural data analysis, modeling, machine learning, and systems neuroscience.",
+  },
+  {
+    period: "Undergraduate",
+    title: "Electronics and Telecommunication Engineering",
+    place: "Undergraduate background",
+    description:
+      "Focus: applied AI, signal processing, programming, and engineering systems.",
+  },
+];
+
+const researchExperience = [
+  {
+    period: "Current",
+    title: "Federico Rossi Lab / IIT CNCS Rovereto",
+    description:
+      "MICRONS connectomics and receptive-field-centered cortical connectivity analysis. Analyzing layer-specific pyramidal connectivity, synapse density maps, soma alignment controls, and visual-field RF relationships.",
+  },
+  {
+    period: "Project",
+    title: "Gabriel Kreiman Lab / Harvard",
+    description:
+      "Working memory and attractor-model benchmarking. Modeling memory-guided behavior and comparing neural-network-style models with cognitive / dynamical-systems hypotheses.",
+  },
+  {
+    period: "Planned",
+    title: "Laurent Perrinet / CNRS-INT Marseille",
+    description:
+      "Planned project on unsupervised extraction of spiking motifs in two-photon data. Interest in Allen Brain Observatory datasets, calcium imaging, spike deconvolution, and motif discovery.",
+  },
+  {
+    period: "Earlier",
+    title: "Applied AI projects",
+    description:
+      "StudentLife-style multimodal stress/depression modeling. Explainability for object detection in drone imagery.",
+  },
+];
+
+const selectedProjects = [
+  "MICRONS pyramidal connectivity and receptive-field-centered input maps",
+  "Working memory / attractor-model benchmarking",
+  "Calcium imaging and spike deconvolution benchmarking",
+  "Occluded natural scene response analysis",
+];
+
+const skillGroups = [
+  {
+    label: "Languages",
+    items: "Python, R, MATLAB, JavaScript/TypeScript basics",
+  },
+  {
+    label: "Scientific Python",
+    items: "NumPy, Pandas, Matplotlib, SciPy",
+  },
+  {
+    label: "Neuroscience tools/data",
+    items:
+      "MICRONS, CAVEclient, calcium imaging, spike deconvolution, connectomics",
+  },
+  {
+    label: "Machine learning",
+    items: "PyTorch basics, classical ML, representation analysis",
+  },
+  {
+    label: "Other",
+    items: "Git, Linux/Ubuntu, Jupyter, VS Code",
+  },
+];
+---
+
+<Layout
+  title={`CV | ${FULL_NAME}`}
+  description="Academic CV for Mranmay Shetty."
+>
+  <div class="mx-auto max-w-5xl px-6 py-12 md:py-16">
+    <header class="border-b border-white/10 pb-10">
+      <p class="font-terminal text-sm text-white/55">academic profile</p>
+      <h1 class="font-terminal mt-4 text-5xl md:text-7xl">&lt;CV /&gt;</h1>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-white/72">
+        MSc student working across computational neuroscience, connectomics,
+        visual cortex, and biologically grounded AI.
+      </p>
+    </header>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">&lt;Education /&gt;</h2>
+      <div class="mt-7 space-y-7">
+        {
+          education.map((item) => (
+            <article class="grid gap-3 md:grid-cols-[9rem_1fr]">
+              <p class="font-terminal text-sm text-white/45">{item.period}</p>
+              <div>
+                <h3 class="text-xl font-semibold text-white">{item.title}</h3>
+                <p class="mt-1 text-white/65">{item.place}</p>
+                <p class="mt-3 leading-7 text-white/72">{item.description}</p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Research Experience /&gt;
+      </h2>
+      <div class="mt-7 space-y-7">
+        {
+          researchExperience.map((item) => (
+            <article class="grid gap-3 md:grid-cols-[9rem_1fr]">
+              <p class="font-terminal text-sm text-white/45">{item.period}</p>
+              <div>
+                <h3 class="text-xl font-semibold text-white">{item.title}</h3>
+                <p class="mt-3 leading-7 text-white/72">{item.description}</p>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Selected Projects /&gt;
+      </h2>
+      <ul class="mt-7 grid gap-3 md:grid-cols-2">
+        {
+          selectedProjects.map((project) => (
+            <li class="rounded-md border border-white/15 bg-white/[0.025] p-4 leading-7 text-white/75">
+              {project}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Technical Skills /&gt;
+      </h2>
+      <div class="mt-7 space-y-4">
+        {
+          skillGroups.map((group) => (
+            <div class="grid gap-2 md:grid-cols-[13rem_1fr]">
+              <p class="font-terminal text-white/55">{group.label}</p>
+              <p class="leading-7 text-white/75">{group.items}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="border-b border-white/10 py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Presentations / Posters /&gt;
+      </h2>
+      <ul class="mt-7 space-y-3 leading-7 text-white/75">
+        <li>
+          MICRONS layer-specific pyramidal input density analysis, internal
+          presentation / lab discussion.
+        </li>
+        <li>EBRAINS occluded natural scene analysis, course project.</li>
+      </ul>
+    </section>
+
+    <section class="py-10">
+      <h2 class="font-terminal text-3xl md:text-4xl">
+        &lt;Awards / Other /&gt;
+      </h2>
+      <p class="mt-7 leading-7 text-white/72">
+        Additional awards, fellowships, coursework, and service can be added
+        here as the CV grows.
+      </p>
+    </section>
+  </div>
+</Layout>

@@ -1,0 +1,51 @@
+---
+import { SITE_TITLE, NAV_LINKS as links } from "@/consts";
+
+const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+---
+
+<nav
+  class="font-terminal w-full !z-[9999] border-b border-white/10 bg-black/90 px-4 py-4 backdrop-blur-sm"
+>
+  <div
+    class="mx-auto grid w-full max-w-6xl grid-cols-1 place-items-center gap-4 md:flex md:justify-between"
+  >
+    <a href="/">
+      <div
+        id="logo"
+        class="!grid !place-items-center bg-white px-4 pb-1 pt-2 leading-none text-black transition-all ease-in-out hover:bg-black hover:text-white"
+      >
+        {SITE_TITLE}
+      </div>
+    </a>
+    <div
+      class="flex flex-wrap items-center justify-center gap-3 text-sm md:gap-4 md:text-base"
+    >
+      <div class="hidden md:block">/</div>
+      {
+        links.map((link) => {
+          const href =
+            link.href ?? link.title.toLowerCase().replaceAll(" ", "-");
+          const target = href.startsWith("/") ? href : `/${href}`;
+          const normalizedTarget = target.replace(/\/$/, "") || "/";
+          const isActive =
+            currentPath === normalizedTarget ||
+            (normalizedTarget !== "/" &&
+              currentPath.startsWith(`${normalizedTarget}/`));
+          return (
+            <>
+              <a
+                class:list={[{ "bg-white text-black": isActive }]}
+                class="max-w-fit px-2 pb-1 pt-1 transition-all ease-in-out hover:bg-white hover:text-black"
+                href={target}
+              >
+                <div>{link.title}</div>
+              </a>
+              <div class="hidden md:block">/</div>
+            </>
+          );
+        })
+      }
+    </div>
+  </div>
+</nav>

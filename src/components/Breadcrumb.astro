@@ -1,0 +1,12 @@
+---
+type Props = {
+  title: string;
+};
+const { title = "Title" } = Astro.props;
+---
+
+<div
+  class="font-terminal flex w-fit select-none items-center justify-center rounded-md bg-white px-4 pb-1 pt-2 text-center font-semibold leading-none text-black"
+>
+  <span>{title}</span>
+</div>

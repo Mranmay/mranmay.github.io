@@ -1,0 +1,46 @@
+---
+import type { CollectionEntry } from "astro:content";
+import FormattedDate from "@/components/Date.astro";
+import Layout from "@/layouts/Layout.astro";
+
+type Props = CollectionEntry<"blog">["data"];
+
+const { title, pubDate, updatedDate, heroImage } = Astro.props;
+---
+
+<Layout title={`${title} | Mranmay Shetty`}>
+  <article class="grid grid-cols-1 place-items-center pb-12">
+    <div class="my-10 grid w-full place-items-center overflow-x-hidden px-6">
+      {
+        heroImage && (
+          <img
+            src={heroImage}
+            alt=""
+            class="max-h-[70vh] rounded-md border border-white/10 object-contain"
+          />
+        )
+      }
+    </div>
+    <div
+      class="blog-content prose prose-invert prose-neutral w-full !max-w-[90vw] overflow-x-hidden !break-words px-4 prose-headings:font-terminal prose-headings:font-normal prose-p:leading-8 prose-a:text-white prose-a:underline prose-blockquote:border-white/30 prose-blockquote:text-white/70 prose-hr:border-white/15 prose-img:mx-auto prose-img:my-10 prose-img:rounded-md prose-img:border prose-img:border-white/10 prose-img:object-contain prose-pre:rounded-md prose-pre:border prose-pre:border-white/10 md:px-0 md:!max-w-3xl"
+    >
+      <div>
+        <div>
+          <p class="font-terminal text-sm text-white/55">
+            <FormattedDate date={pubDate} />
+          </p>
+          {
+            updatedDate && (
+              <div class="font-terminal mt-1 text-sm text-white/45">
+                Last updated on <FormattedDate date={updatedDate} />
+              </div>
+            )
+          }
+        </div>
+        <h1 class="font-terminal">{title}</h1>
+        <hr />
+      </div>
+      <slot />
+    </div>
+  </article>
+</Layout>

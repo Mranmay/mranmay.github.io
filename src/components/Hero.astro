@@ -1,0 +1,30 @@
+---
+import AsciiBrain from "@/components/AsciiBrain.astro";
+import { ABOUT_ME, FULL_NAME, QUOTE } from "@/consts";
+---
+
+<section class="relative !z-[20] w-full border-b border-white/10" id="hero">
+  <div
+    class="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 py-16 md:py-24 lg:grid-cols-[1.05fr_0.95fr]"
+  >
+    <div>
+      <p class="font-terminal mb-4 text-sm text-white/55">research site</p>
+      <h1 class="font-terminal text-5xl leading-tight md:text-7xl">
+        {`<${FULL_NAME} />`}
+      </h1>
+      <h2
+        class="mt-5 max-w-3xl text-xl leading-relaxed text-white/80 md:text-2xl"
+      >
+        {QUOTE}
+      </h2>
+      <p class="mt-8 max-w-2xl text-base leading-8 text-white/70 md:text-lg">
+        {ABOUT_ME}
+      </p>
+      <p class="mt-5 max-w-2xl text-base leading-8 text-white/70 md:text-lg">
+        Currently, I work on MICRONS-based analyses of pyramidal connectivity,
+        receptive-field structure, and layer-specific cortical organization.
+      </p>
+    </div>
+    <AsciiBrain />
+  </div>
+</section>

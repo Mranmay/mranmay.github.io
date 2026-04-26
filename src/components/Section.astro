@@ -1,0 +1,20 @@
+---
+type Props = {
+  title: string;
+  full_screen?: boolean;
+  className?: string;
+};
+const { title = "Section", full_screen = false, className = "" } = Astro.props;
+---
+
+<section
+  id={title.toLowerCase().replaceAll(" ", "")}
+  class={`${full_screen ? "min-h-screen" : ""} w-full px-6 py-12 md:py-16 !overflow-x-hidden ${className}`}
+>
+  <div class="mx-auto w-full max-w-5xl">
+    <h2 class="font-terminal text-3xl md:text-5xl">{`<${title} />`}</h2>
+    <div class="mt-7">
+      <slot />
+    </div>
+  </div>
+</section>
