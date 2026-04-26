@@ -5,7 +5,7 @@
   font-display: swap;
 }
 
-:root {
+html[data-theme="dark"] {
   color-scheme: dark;
   --bg: #000000;
   --fg: #ffffff;
@@ -20,7 +20,7 @@
   --toggle-icon: #000000;
 }
 
-:root[data-theme="light"] {
+html[data-theme="light"] {
   color-scheme: light;
   --bg: #f7f7f2;
   --fg: #111111;
@@ -179,11 +179,26 @@ img,
     color 160ms ease;
 }
 
-.theme-toggle-icon {
+.theme-toggle-moon,
+.theme-toggle-sun {
+  grid-area: 1 / 1;
   transform: translateY(-0.5px);
 }
 
-:root[data-theme="light"] .theme-toggle-thumb {
+.theme-toggle-sun {
+  display: none;
+}
+
+html[data-theme="light"] .theme-toggle-moon {
+  display: none;
+}
+
+html[data-theme="light"] .theme-toggle-sun {
+  display: block;
+}
+
+.theme-toggle[data-mode="light"] .theme-toggle-thumb,
+html[data-theme="light"] .theme-toggle-thumb {
   transform: translateX(18px);
 }
 
@@ -225,7 +240,8 @@ img,
     font-size: 9px;
   }
 
-  :root[data-theme="light"] .theme-toggle-thumb {
+  .theme-toggle[data-mode="light"] .theme-toggle-thumb,
+  html[data-theme="light"] .theme-toggle-thumb {
     transform: translateX(16px);
   }
 }
@@ -366,50 +382,50 @@ img,
   text-align: center;
 }
 
-:root[data-theme="light"] .text-white,
-:root[data-theme="light"] .text-white\/85,
-:root[data-theme="light"] .text-white\/80 {
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-white\/85,
+html[data-theme="light"] .text-white\/80 {
   color: var(--fg) !important;
 }
 
-:root[data-theme="light"] .text-white\/70,
-:root[data-theme="light"] .text-white\/65,
-:root[data-theme="light"] .text-white\/55,
-:root[data-theme="light"] .text-white\/45 {
+html[data-theme="light"] .text-white\/70,
+html[data-theme="light"] .text-white\/65,
+html[data-theme="light"] .text-white\/55,
+html[data-theme="light"] .text-white\/45 {
   color: var(--muted) !important;
 }
 
-:root[data-theme="light"] .text-black {
+html[data-theme="light"] .text-black {
   color: var(--bg) !important;
 }
 
-:root[data-theme="light"] .bg-white,
-:root[data-theme="light"] .bg-white\/95 {
+html[data-theme="light"] .bg-white,
+html[data-theme="light"] .bg-white\/95 {
   background-color: var(--fg) !important;
 }
 
-:root[data-theme="light"] .bg-black {
+html[data-theme="light"] .bg-black {
   background-color: var(--bg) !important;
 }
 
-:root[data-theme="light"] .border-white,
-:root[data-theme="light"] .border-white\/10,
-:root[data-theme="light"] .border-white\/15,
-:root[data-theme="light"] .border-white\/30 {
+html[data-theme="light"] .border-white,
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/15,
+html[data-theme="light"] .border-white\/30 {
   border-color: var(--border) !important;
 }
 
-:root[data-theme="light"] .hover\:bg-white:hover {
+html[data-theme="light"] .hover\:bg-white:hover {
   background-color: var(--fg) !important;
 }
 
-:root[data-theme="light"] .hover\:text-black:hover {
+html[data-theme="light"] .hover\:text-black:hover {
   color: var(--bg) !important;
 }
 
-:root[data-theme="light"] .blog-content,
-:root[data-theme="light"] .blog-content a,
-:root[data-theme="light"] .blog-content strong,
-:root[data-theme="light"] .blog-content code {
+html[data-theme="light"] .blog-content,
+html[data-theme="light"] .blog-content a,
+html[data-theme="light"] .blog-content strong,
+html[data-theme="light"] .blog-content code {
   color: var(--fg);
 }
