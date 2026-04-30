@@ -390,6 +390,8 @@ html[data-theme="light"] .theme-toggle-thumb {
 }
 
 .blog-content .katex-display {
+  font-size: 1.25em;
+  margin: 1.4rem 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding-block: 0.35rem;
@@ -397,6 +399,13 @@ html[data-theme="light"] .theme-toggle-thumb {
 
 .blog-content .katex {
   font-size: 1.03em;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .blog-content .katex-display {
+    font-size: 1.12em;
+  }
 }
 
 html[data-theme="light"] .text-white,
