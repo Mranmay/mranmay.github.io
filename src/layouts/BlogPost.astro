@@ -2,10 +2,12 @@
 import type { CollectionEntry } from "astro:content";
 import FormattedDate from "@/components/Date.astro";
 import Layout from "@/layouts/Layout.astro";
+import "katex/dist/katex.min.css";
 
 type Props = CollectionEntry<"blog">["data"];
 
-const { title, pubDate, updatedDate, heroImage } = Astro.props;
+const { title, description, author, tags, pubDate, updatedDate, heroImage } =
+  Astro.props;
 ---
 
 <Layout title={`${title} | Mranmay Shetty`}>
@@ -38,6 +40,25 @@ const { title, pubDate, updatedDate, heroImage } = Astro.props;
           }
         </div>
         <h1 class="font-terminal">{title}</h1>
+        <p class="!mt-4 text-lg leading-8 text-white/70">{description}</p>
+        {
+          author && (
+            <p class="font-terminal !mt-3 text-sm text-white/45">
+              By {author}
+            </p>
+          )
+        }
+        {
+          tags && tags.length > 0 && (
+            <ul class="!mt-5 flex list-none flex-wrap gap-2 !p-0">
+              {tags.map((tag) => (
+                <li class="font-terminal rounded-none border border-white/25 px-2 py-1 text-xs text-white/60">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )
+        }
         <hr />
       </div>
       <slot />

@@ -382,6 +382,23 @@ html[data-theme="light"] .theme-toggle-thumb {
   text-align: center;
 }
 
+.blog-content table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.blog-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.35rem;
+}
+
+.blog-content .katex {
+  font-size: 1.03em;
+}
+
 html[data-theme="light"] .text-white,
 html[data-theme="light"] .text-white\/85,
 html[data-theme="light"] .text-white\/80 {
