@@ -1,6 +1,6 @@
 ---
 title: "Modeling Romantic Relationships With Dynamical Systems"
-description: "A personal, skeptical literature review of whether romantic relationships can be modeled as dynamical systems, from Strogatz and Rinaldi to Gottman, physiological coregulation, state-space models, and modern latent continuous-time methods."
+description: "A personal, math-informed post on whether romantic relationships can be understood as dynamical systems: feedback loops, attractors, repair, conflict, and why prediction is harder than it sounds."
 pubDate: "2025-05-21"
 author: "Mranmay Shetty"
 tags:
@@ -9,191 +9,497 @@ tags:
   - mathematics
   - psychology
   - complex-systems
-  - literature-review
 ---
 
-## Executive summary
+I thought of looking into this for a very personal reason: I often find people hard to understand in general, and I usually approach things from a logical point of view rather than an emotional one. I am also 25, trained more like an engineer / AI person, and now moving deeper into neuroscience, so my natural instinct is to ask whether something complicated can be described as a system.
 
-I went into this literature hoping for something like a clean “physics of relationships,” and I did not find that. What I found instead is more interesting and more limited: there is a real research tradition that treats romantic and dyadic interaction as a dynamical system, but it works best when the target is not “love” in the abstract so much as a measurable process unfolding through time — affect, positivity versus negativity, physiological linkage, repair attempts, or daily fluctuations in closeness and stress. The strongest parts of the literature are not the famous Romeo-and-Juliet toy models, but the empirical traditions that connect repeated observations to interpretable parameters such as inertia, set points, damping, partner influence, and basins of attraction.
+That does not mean I think people are machines. I do not think love can be reduced to a few equations. But I was curious about a narrower question:
 
-The literature splits pretty naturally into three layers. First there are the conceptual ODE models, from Strogatz through Sprott and Rinaldi, which ask what kinds of long-run behavior are even possible if feelings obey deterministic equations. Second there are empirical couple-interaction models, especially Gottman-style difference equations and later latent differential equation work, where the goal is to estimate interpretable parameters from observed interaction or diary data and relate them to satisfaction, divorce risk, or intervention effects. Third there is the broader modern toolbox — state-space models, DSEM, latent ODEs, regime-switching models, physiological coregulation frameworks — which is less “romantic-love theory” and more a serious methodology for intensive dyadic data.
+**Has anyone tried to quantify the variables in romantic relationships and model them using dynamical systems?**
 
-My bottom line is this: yes, people have absolutely tried to quantify romantic dynamics with dynamical-systems methods, and some parts of that effort are mathematically rigorous and empirically useful. But no, there is no accepted model that can take “all the variables in a relationship” and predict success or failure in any universal sense. Relationship dynamics appear partially predictable at the level of short-run regulation and interaction structure, but they are noisy, context-dependent, and under-measured. If I wanted to do personal research on this seriously, I would start with one narrow layer — daily affect plus satisfaction, or conflict behavior plus physiology — rather than trying to build a single giant theory of human attachment.
+By “dynamical systems,” I mean the kind of mathematical language used to describe things that evolve over time: neurons, populations, ecosystems, weather, control systems, and feedback loops. A romantic relationship also evolves over time. There are states, perturbations, recoveries, spirals, and sometimes sudden transitions. One argument disappears by dinner. Another argument changes the entire relationship. One couple fights often but repairs quickly. Another couple barely fights but slowly drifts apart.
 
-## Why I wanted to know this
+That sounds very dynamical.
 
-I thought of looking into this for a very personal reason: I often find people hard to understand in general and mostly have a logical perspective to things rather than an emotional one, I was curious to see if anyone has developed or researched on ways to quantify all the variables in a relationship especially romantic ones and model them in a dynamical systems methods ...
+So I went down this rabbit hole. What I found is not a clean “physics of love,” but something more interesting: people really have tried to model romantic relationships mathematically. Some models are toy models, some are surprisingly serious, and some use actual couple-interaction data.
 
-That curiosity turns out not to be naive at all. A surprising amount of serious work has asked whether relationships can be treated as evolving systems with state variables, feedback loops, thresholds, lags, attractors, and sometimes bifurcations. But the literature also makes something painfully clear: the minute I ask for “all the variables,” the project becomes impossible. The models that actually work do so by aggressively narrowing the target — for example, to turn-by-turn positivity and negativity in a conflict discussion, or to daily positive and negative affect, or to coupled heart rate and respiration.
+The main lesson I took away is this:
 
-So this post is really about a more disciplined question: **what can be modeled well enough to be useful, and what remains too high-dimensional, ambiguous, or ethically intrusive to formalize?** I came away more sympathetic to the project than I expected, but also more skeptical of grand claims. The models are best when they help us think clearly about local mechanisms — self-regulation, partner influence, stability versus fragility, repair versus escalation — and worst when they pretend to have captured the whole relationship in a couple of symbols.
+**Relationships are probably not predictable in the way planets are predictable, but parts of relationship dynamics can be modeled if we focus on feedback, repair, emotional inertia, and attractors instead of trying to model “love” as one magical variable.**
 
-## Where the dynamical-systems idea came from
+---
 
-The canonical starting point is the famous linear Romeo-and-Juliet setup associated with Strogatz. In Sprott’s summary, the simplest form is
+## The basic idea: a relationship is not a static object
+
+A lot of everyday relationship language is static. We say people are “compatible,” “avoidant,” “anxious,” “toxic,” “secure,” “emotionally unavailable,” or “good together.” These labels can be useful, but they hide the most important part: relationships happen in time.
+
+A relationship is not just two personalities sitting next to each other. It is two people continuously changing each other.
+
+One person’s stress changes the other person’s mood. One person’s silence increases the other person’s anxiety. One person’s reassurance calms the other person down. One person’s criticism creates defensiveness, which creates more criticism. Sometimes the loop damps itself out. Sometimes it amplifies.
+
+That is exactly the kind of thing dynamical systems are good at describing.
+
+In the most abstract form, I can imagine a relationship state as some hidden vector:
 
 $$
-\dot R = aR + bJ,\qquad \dot J = cR + dJ,
+z(t)=
+\begin{pmatrix}
+\text{affection} \\
+\text{trust} \\
+\text{resentment} \\
+\text{stress} \\
+\text{commitment}
+\end{pmatrix}
 $$
 
-where \(R(t)\) and \(J(t)\) are Romeo’s and Juliet’s feelings, \(a,d\) capture how each person’s own current feelings feed back on themselves, and \(b,c\) capture response to the partner’s feelings. This is intentionally minimal, but it already gives nodes, saddles, stable or unstable foci, and in special cases endless cycling when eigenvalues are purely imaginary. In other words: even the toy model is enough to separate mutually amplifying love, mutual collapse to apathy, unstable escalation, and oscillation.
+The relationship changes according to some rule:
 
-The linear algebra matters because it tells me what the model can and cannot do. For the matrix
-\[
-A=\begin{pmatrix} a & b \\ c & d \end{pmatrix},
-\]
-the eigenvalues are
-\[
-\lambda_{\pm}=\frac{(a+d)\pm\sqrt{(a-d)^2+4bc}}{2}.
-\]
-If \(\operatorname{tr}(A)=a+d<0\), trajectories can decay toward an equilibrium; if \(a+d>0\), they can blow up; if the discriminant is negative, I get oscillatory behavior around the equilibrium. What I like about this is not that it is realistic, but that it forces a clean question: **is a relationship stabilizing, amplifying, or cycling given small perturbations?** That question survives even when the model becomes much more complicated.
+$$
+\frac{dz}{dt}=f(z(t),u(t),\theta)
+$$
 
-Sergio Rinaldi’s work made the toy models more psychologically flavored by adding mechanisms such as oblivion, reaction to appeal, and reaction to being loved. The abstract description of linear couples is already richer: forgetting pushes feelings back down, appeal pulls them up, and reciprocal response links the partners. A representative linear-couple form is
-\[
-\dot x_1=-\alpha_1 x_1+\beta_1 x_2+\rho_1A_2,\qquad
-\dot x_2=-\alpha_2 x_2+\beta_2 x_1+\rho_2A_1,
-\]
-where \(\alpha_i>0\) is forgetting, \(\beta_i\) is responsiveness to the partner’s current state, and \(A_i\) is perceived appeal. This is still analytically tractable, but it already moves beyond pure mutual reactivity and lets feelings grow from indifference because appeal enters as an external drive.
+Here, $z(t)$ is the current state, $u(t)$ represents external inputs like distance, work stress, illness, money, family pressure, or life transitions, and $\theta$ represents more stable parameters of the couple: how reactive they are, how quickly they repair, how much they influence each other, how much negativity they tolerate before responding.
 
-Rinaldi’s later “standard couples” model is the point where the literature becomes unmistakably nonlinear. There the state variables are each partner’s current feelings \(x_1,x_2\), and the equations take the form
-\[
-\dot x_1=-\alpha_1 x_1+R_1(x_2)+S_1(A_2),\qquad
-\dot x_2=-\alpha_2 x_2+R_2(x_1)+S_2(A_1).
-\]
-Here \(R_i(\cdot)\) is a nonlinear reaction to the partner’s love and \(S_i(\cdot)\) captures perceived appeal. This framework gives the famous distinction between **robust couples** and **fragile couples**: outside a cusp-bounded region in appeal-space there is one stable equilibrium, but inside that region there can be two stable equilibria separated by a saddle, so long-run outcome depends on initial conditions and basin geometry.
+Obviously, this is not something we can measure perfectly. I cannot open a person’s mind and read “trust = 0.73.” But this framing is already useful because it turns the vague question “is this relationship good?” into more precise questions:
 
-This is where bifurcation language stops being a metaphor and becomes useful. In the standard-couple model, the equilibria are generically one or three, and fold bifurcation curves organize the parameter region; cusp points mark codimension-two collisions of equilibria. Rinaldi and coauthors interpret these geometrically as fragile versus robust relationship regimes, and as favorable versus unfavorable evolution from the state of indifference. The key intuition is that some relationships are locally stable in more than one qualitatively different way, and tiny changes in appeal or responsiveness can move the couple across a boundary where the positive state disappears.
+- When something bad happens, does the system recover?
+- Does one partner’s anxiety amplify the other partner’s withdrawal?
+- Are there stable states the couple keeps returning to?
+- Is the relationship near a tipping point?
+- Does conflict lead to repair, avoidance, or escalation?
 
-One thing I found especially clarifying is that not every romantic model can cycle. In the standard-couple setup, the divergence is constant and negative:
-\[
-\nabla\cdot f=-(\alpha_1+\alpha_2),
-\]
-so by Bendixson’s theorem limit cycles are excluded and the attractors can only be equilibria. That is an extremely useful correction to the vague way people sometimes talk about “relationship cycles.” A model can be nonlinear, bistable, unstable, and bifurcating without allowing closed oscillations. If I want true cyclicity, I need either a different structure, a higher-dimensional system, a delay, or some explicit oscillatory mechanism.
+That is the lens I found useful.
 
-That brings me to the beautiful weirdness of the Laura-and-Petrarch model. Rinaldi introduces three ODEs, not two, because the poet’s love is mediated by a slowly varying internal variable — inspiration. In effect, Petrarch’s love, Laura’s warmth or coldness, and poetic inspiration coevolve on different timescales. The paper shows conditions for a **globally stable slow-fast limit cycle**, interprets the cyclic motion as oscillation between ecstasy and despair, and notes that the cycle can disappear through a supercritical Hopf bifurcation as parameters change. This is a much more ambitious claim than the standard-couple model: not just multiple equilibria, but an analytically characterized oscillatory attractor in a three-dimensional sentimental system.
+---
 
-Sprott pushes further toward chaos. He starts from the Strogatz-style two-person linear model, adds love triangles, and then inserts nonlinear saturation terms such as \(bJ(1-J^2)\) so that excess love can become smothering and extreme hostility can trigger repair-like reversal. In two dimensions these nonlinear variants still do not produce chaos, but in nonlinear love triangles they can. Sprott explicitly reports a strange attractor, a positive largest Lyapunov exponent, and a Kaplan–Yorke dimension just above 2 in one example. The lesson is simple: the moment the system becomes nonlinear and high-dimensional enough, “romance” can become formally chaotic, at least inside the toy-world assumptions of the model.
+## The famous toy model: Romeo and Juliet
 
-If I step back, the historical lineage looks like this. Strogatz gave the memorable pedagogical seed. Sprott explored how nonlinearities and third parties can create complicated qualitative behavior, including chaos. Rinaldi and collaborators turned this into a sustained research program about appeal, oblivion, return, bistability, cusp bifurcations, fragile versus robust couples, and story-specific case studies such as Francesco Petrarch and the Canzoniere. The mathematics got sharper at each step, but so did the underlying warning: every variable I add makes the model richer **and** less identifiable from ordinary relationship data.
+The classic starting point is Steven Strogatz’s “Romeo and Juliet” model. In the simplest version, Romeo’s feelings and Juliet’s feelings are represented by two variables. Let $R(t)$ be Romeo’s love for Juliet and $J(t)$ be Juliet’s love for Romeo. Positive values mean love, negative values mean dislike or hate.
 
-Conceptually, the modeling lineage runs from minimal love ODEs to linear stability analysis, then to appeal, forgetting, and response terms, nonlinear reaction functions, bifurcations and multiple equilibria, slow-fast cycles, and high-dimensional nonlinear systems. A parallel empirical branch moves toward diary data, video-coded interaction, physiology, EMA, and other time-series measurements.
+A simple linear model is:
 
-## What the empirical couple models actually do
+$$
+\frac{dR}{dt}=aR+bJ
+$$
 
-The most influential empirical strand is the Gottman program, and it is importantly different from the love-ODE tradition. The core object is not “love level” but observed interaction, often coded as positive minus negative behavior at each turn of speech during conflict. In one of the central formulations, if \(W_t\) and \(H_t\) are wife and husband scores at turn \(t\), the dynamics are written as
-\[
-W_{t+1}=a+r_1W_t+I_{HW}(H_t),\qquad
-H_{t+1}=b+r_2H_t+I_{WH}(W_t).
-\]
-Here \(a\) and \(b\) are uninfluenced baselines or set points, \(r_1,r_2\) are emotional inertia terms, and \(I_{HW}, I_{WH}\) are nonlinear influence functions mapping one partner’s current state into the other’s next response.
+$$
+\frac{dJ}{dt}=cR+dJ
+$$
 
-This is conceptually elegant because each parameter means something I can almost explain in plain English. **Set point** is where someone tends to drift absent partner influence. **Emotional inertia** is how sticky their state is from one moment to the next. **Influence function** asks how one partner’s current positivity or negativity moves the next turn of the other partner, often with thresholds and asymmetric slopes. Gottman’s earlier theoretical paper explicitly emphasizes nonlinear influence functions with thresholds, and the later work discusses stable and unstable steady states, basins of attraction, and the idea that opening conditions can strongly shape where a conversation ends up.
+The parameters decide the “romantic style” of each person. For example, $b>0$ means Romeo warms up when Juliet loves him. But $b<0$ means Romeo backs away when Juliet loves him. Similarly, $a>0$ means Romeo reinforces his own feelings, while $a<0$ means his feelings naturally fade unless something sustains them.
 
-What I find compelling here is that the model is psychologically interpretable without pretending to be a theory of everything. It is a model of **interaction regulation**. The broader Gottman program reported that longitudinal studies could predict whether couples would divorce or stay married, and how satisfied they would be if they stayed married, with over 90% accuracy using behavior, perceptions, and physiology collected during interactions. The mathematical modeling papers were meant to build theory beneath those predictions, not replace them with a single magic equation.
+In matrix form:
 
-The 1999 marital-conflict paper is especially important because it links estimated dynamic parameters to later outcomes. The paper reports that couples who eventually divorced began with more negative uninfluenced steady states, more negative influenced husband steady states, and lower negative thresholds in the influence function. Related analyses in the 1995 paper also concluded that husband and wife set points were significantly predictive of divorce. So the result is not just “negative couples do worse”; it is more specific: **the geometry of interaction matters**, especially how negative the system’s resting points are and how easily negativity starts to dominate partner influence.
+$$
+\frac{d}{dt}
+\begin{pmatrix}
+R \\
+J
+\end{pmatrix}
+=
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+R \\
+J
+\end{pmatrix}
+$$
 
-The 2002 general-systems paper makes another point that still feels modern to me: there may be multiple steady states for a couple, and starting conditions can push the same couple toward different conversational futures. With bilinear or sigmoidal influence functions, a pair can have two stable steady states and one unstable one; initial scores determine the basin they start in. The authors even discuss a catastrophe scenario in which slow parameter drift removes the positive steady state altogether, leaving only a negative attractor. That is an unusually precise way to formalize the intuition that some relationships feel fine until, all at once, they no longer have a “good mode” available.
+The behavior of this system is controlled by the eigenvalues of the matrix:
 
-Gottman and colleagues also confront one of the model’s shortcomings directly: repair. They note that a pure attractor model can be “grim” because it offers no mechanism by which a conversation that starts badly can recover. Their empirical observation was that only about 4% of couples who began negatively managed to turn the interaction significantly around, but that rarity was still enough, in their view, to motivate adding switch-like repair terms. I like this philosophically because it shows the right modeling instinct: when the data reveal a qualitatively important pattern the equation cannot express, the answer is not blind loyalty to the old equation. It is to change the model.
+$$
+\lambda_{\pm}
+=
+\frac{(a+d)\pm\sqrt{(a-d)^2+4bc}}{2}
+$$
 
-A second empirical stream comes from latent differential equation and idiographic dyad modeling. Steele and Ferrer used daily self-reports of positive and negative affect from romantic couples and fit a damped linear oscillator in a latent differential equation framework. In broad terms, the state equation is something like
-\[
-\ddot x_i(t)=\eta_i x_i(t)+\zeta_i \dot x_i(t)+\gamma_{ij}x_j(t)+\kappa_{ij}\dot x_j(t)+\varepsilon_i(t),
-\]
-where the first two terms capture a person’s own restoring or amplifying tendency and the latter terms capture partner influence through displacement and rate-of-change. Their results suggested an absence of damping in relationship-specific affect, stronger positive than negative affect influence at the individual level, and differentiated cross-partner coupling patterns for positive versus negative affect.
+This is where the model becomes more than a joke. Depending on the parameters, the relationship can move toward apathy, spiral outward, oscillate, or get pulled toward one of several directions.
 
-That same research line is careful about heterogeneity. In a later idiographic paper, Steele, Ferrer, and Nesselroade fit several differential-equation models to each couple’s daily affect data and used AICc to classify the most likely interaction pattern for each dyad. Strikingly, within that sample the most likely style was often **independence**, meaning that many couples’ daily affect traces did not show strong evidence of emotional interrelation at the timescale observed. I think this is one of the healthiest findings in the literature because it cuts against the romantic temptation to assume every close relationship must show strong continuous coupling if only we model it cleverly enough. Sometimes the right answer is simply: not much coupling at this timescale.
+A particularly funny case is when Romeo reacts only to Juliet and Juliet reacts only to Romeo:
 
-A third empirical branch sits closer to developmental and intervention science. Feinberg and colleagues used micro-coded positivity and negativity from videotaped couple tasks around the transition to parenthood, modeling these with coupled-oscillator ideas to study self- and co-regulation before and after birth and under intervention versus control conditions. Their sample was only 34 heterosexual couples, which is not large, but it is methodologically valuable because it showed how dynamic parameters can serve as intervention-sensitive mechanisms rather than just descriptive features. One reported finding was that men’s positive behaviors shifted from damping to amplifying women’s negative behaviors in the control group after the transition to parenthood, whereas in the intervention group those same positive behaviors exerted a stronger damping effect on women’s negativity. That is exactly the kind of result I want from a dynamical model: not a vague statistical association, but a mechanistic statement about how the local flow changed.
+$$
+\frac{dR}{dt}=-aJ
+$$
 
-If I had to summarize the empirical lesson in one sentence, it would be this: the most useful dynamical models of relationships are not trying to solve romance in general; they are estimating a couple’s **local rules of regulation**. They ask whether negativity is sticky, whether partner positivity dampens or amplifies the other person’s bad state, whether there are multiple attractors, whether repair exists, and whether those quantities differ across couples or interventions. That is a much humbler goal than predicting love itself, and because it is humbler, it is often more informative.
+$$
+\frac{dJ}{dt}=bR
+$$
 
-## What newer latent-state models add
+Differentiate the first equation once more:
 
-The moment data become noisy, irregular, multivariate, and only partially observed, the natural language shifts from hand-derived ODEs to latent-state models. A very general linear state-space setup writes
-\[
-\eta_{it}=\nu+B\eta_{i,t-1}+\zeta_{it},\qquad
-y_{it}=\tau+\Lambda \eta_{it}+\epsilon_{it},
-\]
-where \(\eta_{it}\) are latent states, \(y_{it}\) are observed indicators, \(B\) governs state evolution, and \(\Lambda\) links latent states to measurements. Chow’s overview emphasizes that state-space methods are especially useful for intensive longitudinal data and notes a typical setting with many repeated measures — often \(T>50\) — where conventional SEM becomes cumbersome.
+$$
+\frac{d^2R}{dt^2}+abR=0
+$$
 
-For relationship research, that matters because I rarely observe the psychologically meaningful state directly. What I see might be self-reports, facial expressions, heart rate, speech features, or app-based ratings, each of which is noisy and partial. State-space thinking lets me separate the **measurement model** from the **dynamic model**. That is not just a statistical technicality; it is a conceptual improvement. It lets me say, for example, that “momentary security” is latent, but can be imperfectly indicated by warmth ratings, touch, and reduced physiological arousal, while the latent state itself follows autoregressive or continuous-time dynamics.
+That is the equation for a harmonic oscillator. In plain English: Romeo and Juliet cycle forever. One warms up, the other responds, the first cools down, the other reacts again, and the system keeps rotating.
 
-Dynamic Structural Equation Modeling (DSEM) is the clearest modern generalization for this literature. Asparouhov, Hamaker, and Muthén describe DSEM as a framework for intensive longitudinal data that combines multilevel modeling, time-series modeling, SEM, and time-varying effects modeling. It is estimated with Bayesian MCMC, supports observed and latent lagged dependencies, can handle long studies, and is explicitly motivated by data from smartphones and other ambulatory devices — daily diary, EMA, and ESM included. They also discuss DIC as one model-comparison tool inside the framework.
+Is this a realistic model of love? No. But it shows something important: **cyclic relationship patterns can emerge from feedback rules even when nobody is “trying” to create a cycle.**
 
-For dyads, DSEM is attractive because it gives me a middle ground between oversimplified hand-built ODEs and purely black-box forecasting. I can write actor and partner lags, allow random effects so couples differ in inertia and cross-lagged influence, include latent constructs instead of raw scores, and keep the observation schedule irregular if needed. If I wanted to study whether one partner’s stress today predicts the other partner’s irritability tomorrow while controlling for each person’s own carryover, DSEM is almost tailor-made for that.
+This is the first useful idea.
 
-There is also a continuous-time latent-ODE direction. Steele and Ferrer’s latent differential equation work already sits in this space conceptually, but modern machine-learning formulations make it more flexible. The Latent ODE paper frames irregularly sampled trajectories as deterministic evolution of an initial latent state under a learned ODE, often trained variationally; ODE-RNNs combine ODE dynamics between observations with discrete updates at observation times. The point is not that these models are romance-specific — they are not — but that they solve a problem that relationship data very often have: irregular timing, missingness, uneven spacing, and latent trajectories that should evolve smoothly between observed moments.
+A relationship pattern is not always caused by one person being irrational. Sometimes the loop itself creates the pattern.
 
-I still think the purely neural versions should be treated cautiously here. Their advantage is expressive power; their disadvantage is interpretability. In affective computing, constrained neural ODEs have been used to model smoothly evolving emotion distributions with temporal dependence and explicit smoothness/range constraints. That is methodologically promising for dyadic affect, especially if I am trying to infer latent valence/arousal trajectories from speech, video, or multimodal signals. But if my actual question is “why do some couples spiral and others stabilize?”, I would usually prefer a model whose parameters I can name — damping, threshold, self-regulation, partner gain — over a highly flexible neural flow that forecasts well but explains little.
+---
 
-The bridge between old and new, to me, is physiological coregulation. Ferrer and Helm explicitly model heart rate and respiration in couples with a differential-equation framework that separates self-regulation and coregulation. Their general first-order form can be read as movement toward one’s own equilibrium plus coupling to the discrepancy from the partner:
-\[
-\dot x = a_1(x^\ast-x)+a_2(y-x),\qquad
-\dot y = b_1(y^\ast-y)+b_2(x-y).
-\]
-In their study of 32 couples, the model was applied directly to each dyad’s physiological time series across multiple tasks, and respiration during imitation showed coordination between partners; estimated physiological parameters were also related to parameters from daily affect models.
+## But “love” is not one variable
 
-That work connects nicely to Butler and Randall’s conceptual definition of coregulation as a bidirectional linkage of oscillating emotional channels contributing to emotional stability for both partners. What I like here is that “coregulation” becomes something I can operationalize rather than just admire. It is no longer only a poetic description of emotional attunement; it becomes a question about coupled trajectories, feedback structure, and recovery toward baseline.
+The immediate problem is obvious: what exactly is $R(t)$?
 
-## What I would measure and how I would model it
+Is it attraction? Attachment? Sexual desire? Trust? Warmth? Obsession? Safety? Commitment? Familiarity? Dependency? All of these can move differently.
 
-The single biggest practical insight from this literature is that model choice should follow data density and question type. If I have turn-by-turn or second-by-second observations in a lab conflict task, then difference equations, state-space models, or coupled ODEs make sense. If I have 14 to 30 days of diary or EMA data, then VAR, DSEM, or simpler continuous-time latent models are usually more realistic. If I only have one pre/post satisfaction score per person, then talking about dynamical systems is usually just cosplay.
+This is one of the biggest limitations of the toy models. They often treat love as a single number. But real romantic experience is not one-dimensional.
 
-The measurement modalities that appear most useful fall into four buckets. **Daily or momentary self-report** is the easiest and often enough for affect or satisfaction dynamics; Steele and Ferrer’s work is the clearest example. **Coded behavior** from video is more labor-intensive but closer to Gottman’s interaction-regulation tradition. **Physiology** — heart rate, respiration, RSA, skin conductance — adds a lower-level channel for co-regulation and can reveal linkage even when self-report is flat. **Smartphone or digital traces** are best treated as contextual or proxy measurements rather than direct windows into relationship quality; they are promising, but more ethically delicate and conceptually noisier.
+I can imagine liking someone but not trusting them. I can feel attached but not calm. Someone can be attractive but unsafe. A relationship can be intense and still unstable. Another can be less intense but much healthier.
 
-If I wanted to formalize the choice set, I would think of it like this.
+So the first serious correction is: **the variable matters.**
 
-| Model family | Typical data requirements | What the parameters mean | Predictive power | Empirical support in romantic/dyadic work |
-|---|---|---|---|---|
-| Linear ODE love models | Low-to-moderate; mainly conceptual unless heavily simplified | High interpretability | Low-to-moderate | Strong historical/theoretical, weak direct validation |
-| Nonlinear ODE / bifurcation models | Moderate-to-high, especially if estimated from data | High if low-dimensional | Moderate in simulation, limited real-world estimation | Strong mathematical lineage, sparse empirical fitting |
-| Difference-equation couple models | Turn-level interaction sequences | High interpretability: set points, inertia, thresholds, partner influence | Moderate-to-high for interaction outcomes, especially as theory-building tools | Strong in Gottman tradition |
-| Latent differential equations / coupled oscillators | Repeated diary or dense time-series data | Moderate-to-high interpretability | Moderate | Good empirical support in affect and coregulation studies |
-| State-space / DSEM | Intensive longitudinal data, often irregular and noisy | Moderate interpretability, high flexibility | Moderate-to-high | Strong methodological support; growing applied use |
-| Neural / latent ODE variants | Larger irregular time series, often multimodal | Lower interpretability | Potentially high forecasting | Methodologically promising; not yet a settled romance-specific literature |
+If we model the wrong thing, even perfect math is useless.
 
-The ratings in this table are my synthesis of the sources reviewed here, not a benchmark table from any one paper. The general pattern is that interpretability drops as flexibility rises, and that the most empirically anchored relationship models still live in the middle of that tradeoff rather than at either extreme.
+That is why I found the later models more interesting when they moved away from “love” as one scalar and toward specific mechanisms: appeal, forgetting, partner influence, emotional inertia, negativity thresholds, and repair.
 
-For validation, I would keep the metrics honest and boring. For continuous outcomes: one-step-ahead RMSE/MAE, held-out log likelihood if the model is probabilistic, and recovery of known qualitative features such as damping sign, threshold location, or attractor count. For couple outcome prediction: AUC or balanced accuracy if the target is dissolution versus stability, but only if the target window and class balance are specified. For mechanism claims, I would care as much about identifiability and parameter uncertainty as about predictive accuracy. An uninterpretable parameter with a dramatic estimate is not an insight; it is just a nicely formatted hallucination.
+---
 
-That last point matters because ODE estimation can fail in subtle ways. Miao and colleagues call identifiability analysis the first step in determining unknown parameters in nonlinear ODE models. Wieland and colleagues distinguish structural from practical identifiability and argue that practical identifiability is often the harder real-world problem, especially under partial observation. Simpson and Maclaren then push profile-likelihood workflows as a way to tie together identifiability analysis, estimation, and prediction uncertainty. For relationship models, this is not optional sophistication; it is survival. The parameter most likely to sound psychologically profound may also be the one the data barely identify.
+## Adding appeal, memory, and forgetting
 
-On the estimation side, the toolchain depends on model class. Ferrer and Helm fit their differential equations using SAS’s `MODEL` procedure. Steele and colleagues used model comparison with AICc across idiographic differential-equation candidates. DSEM is Bayesian and MCMC-based in Mplus. Chow and colleagues show that SAEM is useful for nonlinear ODE models with random effects and irregularly spaced observations, which is directly relevant if I am trying to fit heterogeneous dyads without assuming equal observation intervals. In practice, that means my estimation strategy is part of the research design, not something I get to postpone until after measurement.
+Sergio Rinaldi and collaborators developed a line of models usually called “love dynamics.” These models are still simplified, but they add a more realistic idea: feelings do not only depend on the other person’s feelings. They also depend on appeal and forgetting.
 
-## What is feasible, ethical, and worth doing personally
+A simplified version looks like this:
 
-If I were actually going to do this on myself or on volunteer couples, I would avoid the fantasy of total quantification. The practical research question has to be narrow enough that both the data and the ethics stay manageable. “Can I model whether this couple can recover from negativity once a conflict begins?” is plausible. “Can I infer the true state of the relationship from all available digital traces?” is not just overconfident; it is morally suspect.
+$$
+\frac{dx_1}{dt}
+=
+-\alpha_1x_1+\beta_1x_2+\gamma_1A_2
+$$
 
-The privacy issue is not secondary here. Relationship data are almost definitionally co-owned: my feelings about you are partly also data about you. If I collect diaries from both partners, record conflict, or use phone-based traces, I am no longer just doing self-quantification. I am building a two-person surveillance system. That means consent has to be explicit, revocable, symmetric, and specific about what is collected, how it is stored, and whether one partner gets to see the other’s raw data. Even a technically elegant model is a bad idea if the data-collection process itself degrades trust.
+$$
+\frac{dx_2}{dt}
+=
+-\alpha_2x_2+\beta_2x_1+\gamma_2A_1
+$$
 
-There is also a subtler ethical problem: reification. Once a model spits out a “negative attractor” or “weak repair parameter,” it becomes tempting to treat that as the relationship’s hidden truth. But the literature itself does not justify that level of ontological confidence. Most models are local, task-specific, and timescale-specific. A couple can have a nasty conflict dynamic and still be stable in everyday companionship; they can have physiological linkage without emotional security; they can look independent in daily-affect data and still matter enormously to each other. The model is a lens, not a verdict.
+Here, $x_1$ is person 1’s feeling toward person 2, and $x_2$ is person 2’s feeling toward person 1.
 
-With that said, I do think there are three realistically good research designs here.
+The terms have a nice interpretation:
 
-### A minimal personal project
+- $-\alpha_1x_1$ is forgetting or emotional decay.
+- $\beta_1x_2$ is person 1 reacting to being loved by person 2.
+- $\gamma_1A_2$ is person 1 reacting to person 2’s appeal.
 
-If I wanted the lightest-weight serious design, I would run a **14-day dyadic diary/EMA study** with 4 to 5 prompts per day. At each prompt I would measure positive affect, negative affect, felt closeness, perceived responsiveness, conflict since last prompt, and perhaps whether we were physically together. That yields roughly 56 to 70 observations per person, which is not luxurious but is already in the zone where intensive longitudinal methods become meaningful. I would analyze it with a simple dyadic VAR or DSEM first, and only move to continuous-time latent models if the temporal spacing were irregular enough to justify it.
+This already feels more realistic. Feelings can grow from indifference because someone is appealing, not just because they love us back. Feelings can also fade unless sustained.
 
-### A behavior-focused lab project
+The equilibrium is found by setting both derivatives to zero. In the symmetric-looking linear case, the stability depends on whether emotional damping is stronger than mutual amplification:
 
-If my real interest were repair versus escalation, I would do **video-coded conflict tasks**. One or two 10- to 15-minute discussions, micro-coded at the turn level or in short bins, is enough to estimate difference-equation or state-space models of positivity and negativity. This is the most direct descendant of the Gottman tradition, and it is where parameters like set point, inertia, threshold, and repair mean something concrete. The downside is that coding is laborious and the ecological validity is narrower than diaries.
+$$
+\alpha_1\alpha_2>\beta_1\beta_2
+$$
 
-### A multimodal coregulation project
+This inequality is simple but psychologically interesting.
 
-If I wanted the most scientifically interesting version, I would collect **EMA plus physiology**. The design could pair daily or momentary self-report with one structured interaction in the lab during which heart rate and respiration are recorded continuously. The self-report side gives subjective state and outcome variables; the physiology gives me a second channel for coupling that is less filtered by self-presentation. This is the design I would trust most if my actual question were whether co-regulation exists, not just whether partners report feeling connected.
+If the left side is bigger, forgetting / damping dominates. The system can settle. If the right side is too large, mutual reactivity dominates, and the system can become unstable.
 
-As a rough rule of thumb, my sample-size guidance would be: **one dyad is enough for an idiographic pilot, but not for generalization**; **50+ repeated observations per person** is where state-space and continuous-time thinking start to feel justified; **30+ observations** is about the lower end where DSEM-style longitudinal structure becomes more plausible than static models; and if I want multilevel inference about between-couple heterogeneity, I would aim for **at least dozens of couples, ideally 50 to 100 or more**, depending on model complexity. That is not a substitute for power analysis or simulation, just a realistic design heuristic extracted from how these methods are typically framed and applied.
+That sounds surprisingly human. A relationship does not need zero emotion to be stable. It needs enough emotional damping so that every small perturbation does not explode.
 
-For preprocessing, I would keep the pipeline boring and reproducible: synchronize timestamps, resample onto an explicit grid only if necessary, center variables thoughtfully, inspect missingness before imputing anything, smooth physiological traces only as much as justified by noise characteristics, and pre-register what counts as self-regulation versus partner influence before fitting. For nonlinear ODEs I would test identifiability before writing any grand interpretations. For comparison, I would fit a simpler model first — often a dyadic AR or VAR — and ask whether the fancier mechanism actually buys interpretability or predictive gain.
+In my own words: **intensity is not the same as stability.**
 
-### Open questions and limitations
+---
 
-The biggest unresolved issue in this whole literature is still **timescale**. A couple can be stable at the level of years, oscillatory at the level of weeks, and chaotic-looking at the level of seconds. Different models are answering different questions. Another open issue is **construct validity**: is “positive minus negative behavior” really the right state variable, or just the one that is easiest to code? And finally there is **external validity**: many classic studies use small or specialized samples, heterosexual couples, lab conflict tasks, or historically narrow populations. That does not make the findings worthless; it just means I should treat them as structured clues rather than universal laws.
+## Attractors: the concept that made the most sense to me
 
-## Recommended reading
+The concept I found most useful is the attractor.
 
-If I were handing myself a compact reading list after this, I would start with: Strogatz’s pedagogical Romeo-and-Juliet model as summarized and extended by Sprott; Rinaldi’s linear couples paper; Rinaldi’s standard-couple and Petrarch papers for bifurcations and cycles; Gottman’s difference-equation papers and the book The Mathematics of Marriage for empirical interaction modeling; Ferrer and Helm for physiological coregulation; Steele and Ferrer for latent differential equations on daily affect; and Asparouhov, Hamaker, and Muthén for DSEM as the most practical general framework for intensive longitudinal relationship data.
+An attractor is a state the system tends to return to. In relationship terms, an attractor could be closeness, chronic conflict, emotional distance, anxious pursuit, or calm companionship.
 
-What I take from all of this is not that romance has finally been mathematized, but that there are parts of intimacy — especially regulation, coupling, and stability — that become sharper when I let myself think in trajectories instead of traits. That feels useful to me. It does not make people easy to understand. But it does make some forms of confusion legible. And honestly, that is already a lot.
+For example, imagine relationship satisfaction $s(t)$ obeys:
+
+$$
+\frac{ds}{dt}=-k(s-s^\ast)
+$$
+
+Here, $s^\ast$ is the baseline state the relationship returns to, and $k$ is the recovery rate. If something bad happens, $s(t)$ drops. But if $k>0$, it gradually returns:
+
+$$
+s(t)=s^\ast+(s(0)-s^\ast)e^{-kt}
+$$
+
+That is basically a toy model of repair.
+
+A couple has a bad conversation, satisfaction drops, but the relationship returns to baseline. Some couples return quickly. Some return slowly. Some never fully return.
+
+That alone is useful. It suggests that a relationship should not only be judged by whether conflict happens. Conflict happens in basically every real relationship. The more important question is:
+
+**What does the system do after conflict?**
+
+Does it repair? Does it avoid? Does it escalate? Does resentment accumulate?
+
+This also explains why two relationships can look similar from the outside but be very different dynamically. Two couples may both argue once a week. But in one couple, arguments are perturbations around a stable affectionate state. In another, arguments push the system deeper into a negative attractor.
+
+Same frequency of conflict. Different dynamics.
+
+---
+
+## Basins of attraction: why some fights change everything
+
+The next useful idea is the basin of attraction.
+
+A basin of attraction is the set of starting points that eventually flow to the same attractor. Imagine a landscape with two valleys. A ball placed on one side rolls into one valley; a ball placed on the other side rolls into the other.
+
+For relationships, one valley might be trust and repair. Another might be suspicion and resentment.
+
+A small argument inside the “trust basin” may not matter much. The relationship rolls back to safety. But if the system is already near the boundary, the same argument can push it into a different basin.
+
+This is the mathematical version of something people say informally: “After that, things were never the same.”
+
+In dynamical language, a relationship can cross a separatrix — a boundary between basins.
+
+That does not mean the relationship is doomed. But it means the system has moved into a region where the default flow is different. Repair now requires more work because the old attractor is no longer the easiest place to return to.
+
+This framing makes a lot of emotional experiences sound less mysterious. Sometimes the issue is not the event itself. It is the state of the system when the event happens.
+
+---
+
+## The serious empirical part: Gottman’s marital conflict models
+
+The most serious work I found was not the Romeo-and-Juliet model. It was the work by John Gottman, Catherine Swanson, and James Murray on marital interaction.
+
+Their models were not about abstract “love.” They modeled real couple interactions, especially conflict conversations, using nonlinear difference equations.
+
+The basic form is:
+
+$$
+W_{t+1}=a+r_1W_t+I_{HW}(H_t)
+$$
+
+$$
+H_{t+1}=b+r_2H_t+I_{WH}(W_t)
+$$
+
+Here, $W_t$ is the wife’s affective state at time $t$, and $H_t$ is the husband’s affective state at time $t$. The variables were based on coded interaction data: positive and negative behaviors during conversation.
+
+The terms are very interpretable:
+
+- $a$ and $b$ are baseline tendencies.
+- $r_1W_t$ and $r_2H_t$ are emotional inertia.
+- $I_{HW}(H_t)$ is the husband’s influence on the wife.
+- $I_{WH}(W_t)$ is the wife’s influence on the husband.
+
+This is much more grounded than the toy models because the variables are measured from actual interaction.
+
+The part I like most is the separation between what each person brings into the conversation and what the interaction does once it begins. In normal language, we often mix these together. We say someone is “negative” or “reactive.” But the model asks something more precise:
+
+- What is your baseline state before influence?
+- How much does your previous state carry over?
+- How strongly does your partner’s state move you?
+- At what level of negativity do you start responding?
+
+That is a very systems-level way to think about conflict.
+
+Gottman and colleagues reported that parameters from these models predicted divorce in a sample of newlywed couples. The parameters included uninfluenced steady states, emotional inertia, influenced steady states, and influence functions. The paper also emphasized that the model separates what each person brings into the interaction from where the interaction goes once mutual influence starts.
+
+This is not “one equation predicts love.” It is more specific: **certain interaction dynamics carry information about relationship stability.**
+
+That distinction matters.
+
+---
+
+## The most human parameter: the negativity threshold
+
+The most interesting parameter to me is the negative threshold.
+
+In the Gottman model, the influence function can have thresholds. In simple terms, one partner’s negativity may not affect the other partner until it passes some level. A low threshold means the partner responds to small negativity. A high threshold means the partner does not respond until things get very negative.
+
+At first, I would have guessed that tolerating more negativity is a good thing. Maybe it means patience. Maybe it means emotional maturity. But Gottman’s interpretation is more subtle.
+
+If the negativity threshold is too high, the couple may be adapting to negativity instead of repairing it. They let small things slide until they become big things.
+
+The model suggests that healthier couples may notice and respond to negativity earlier — not necessarily by escalating, but by repairing before the system drifts too far.
+
+That really clicked for me.
+
+In control-systems terms, delayed feedback can make a system unstable. If the controller waits too long before correcting the error, the deviation grows. By the time the system responds, the correction has to be much larger.
+
+In relationship terms: if resentment is allowed to accumulate silently, the eventual repair problem becomes much harder.
+
+So one possible takeaway is:
+
+**A stable relationship is not one where negativity is ignored. It may be one where negativity is detected early enough to be repaired.**
+
+That feels both mathematical and very practical.
+
+---
+
+## Why repair is more important than no conflict
+
+One mistake I used to make when thinking logically about relationships is imagining that fewer conflicts automatically means a better system.
+
+But dynamical systems suggest a different view.
+
+A system can have perturbations and still be stable. In fact, biological systems are constantly perturbed. Neurons fluctuate, bodies experience stress, ecosystems change, and yet stability comes from regulation, not from the absence of disturbance.
+
+So for relationships, the better question may be:
+
+**What are the repair dynamics?**
+
+If a couple has a disagreement, does the system move back toward warmth? Or does it stay displaced? Does one partner’s repair attempt reduce tension? Or does it fail? Does apology actually change the trajectory? Or does the system return to the same negative loop?
+
+A simple repair model might look like:
+
+$$
+\frac{dn}{dt}=g(n)-r(t)
+$$
+
+where $n(t)$ is negativity and $r(t)$ is repair. If repair is strong enough, negativity decays. If repair is weak or delayed, negativity accumulates.
+
+Of course, real repair is not one variable. It includes timing, sincerity, safety, tone, memory, attachment, and the history of previous repairs. But as a concept, repair is a dynamical force. It changes the trajectory.
+
+This is probably the most useful idea in the whole topic for a general audience: **do not only ask how much conflict exists; ask whether the system can repair itself.**
+
+---
+
+## Emotional inertia: why moods carry over
+
+Another parameter I liked is emotional inertia.
+
+In a dynamical model, inertia means the current state depends on the previous state. If someone is negative now, they are more likely to remain negative at the next time step.
+
+That can be written simply as:
+
+$$
+x_{t+1}=rx_t+\text{other influences}
+$$
+
+If $r$ is close to zero, the state changes easily. If $r$ is close to one, the state is sticky.
+
+Psychologically, this maps onto something obvious but important: some people recover quickly, while others stay in a state for a long time. Some conversations reset quickly. Others have emotional momentum.
+
+In relationships, two inertias interact. If both people have high negative inertia, conflict can become sticky. If one person has high inertia and the other is highly reactive, the system can become asymmetric: one person remains upset, the other keeps responding to that upset, and the loop sustains itself.
+
+This is where the math helps me because it stops the conversation from becoming moralistic. Instead of saying “this person is bad at relationships,” I can ask:
+
+**What is the recovery time constant of this emotional system?**
+
+That sounds cold, but it is actually useful. It turns blame into mechanism.
+
+---
+
+## Co-regulation: when two nervous systems become coupled
+
+The relationship literature also connects to something I care about from neuroscience: regulation.
+
+A relationship is not only two minds exchanging sentences. It is also two nervous systems influencing each other. Heart rate, breathing, stress responses, facial expressions, posture, and voice all become part of the loop.
+
+A simple co-regulation model might be:
+
+$$
+\frac{dx}{dt}=a_1(x^\ast-x)+a_2(y-x)
+$$
+
+$$
+\frac{dy}{dt}=b_1(y^\ast-y)+b_2(x-y)
+$$
+
+Here, $x$ and $y$ could be emotional arousal levels for two partners. The first term pulls each person back toward their own baseline. The second term couples them to the other person.
+
+If $a_2$ and $b_2$ are positive, the partners tend to move toward each other’s states. That can be good or bad. If one person is calm, the other may calm down. But if one person is stressed, stress can also spread.
+
+That is why synchrony is not automatically good. Two people can synchronize into calm, but they can also synchronize into panic, anger, or avoidance.
+
+This is where relationship dynamics start to look very close to neuroscience. Brains and bodies are coupled regulatory systems. A romantic relationship is not just a story people tell about each other. It is also a biological feedback loop.
+
+---
+
+## Why prediction is possible, but only in a limited way
+
+The tempting question is: can we predict whether a relationship will succeed or fail?
+
+After reading this literature, my answer would be:
+
+**Sometimes locally, rarely universally.**
+
+We may be able to predict short-term interaction trajectories. For example, given a conflict conversation, can we estimate whether it will escalate or repair? That seems plausible.
+
+We may also be able to estimate risk from repeated patterns: negative baseline, high emotional inertia, strong negative influence, poor repair, high negativity threshold, and so on.
+
+But predicting the full fate of a relationship is much harder. Relationships are not closed systems. They are affected by illness, distance, money, family, career changes, maturity, trauma, timing, social support, and random life events. People also learn. Their parameters are not fixed forever.
+
+This is why I do not think the right goal is a “relationship prediction machine.”
+
+A better goal is to identify dynamical patterns:
+
+- Is the relationship self-correcting?
+- Does conflict amplify or damp out?
+- Are there positive attractors?
+- Are repair attempts effective?
+- Is the system becoming more rigid over time?
+- Are small perturbations producing large reactions?
+
+That is already a lot.
+
+It is less like predicting destiny and more like understanding stability.
+
+---
+
+## The biggest limitation: measuring the hidden variables
+
+The biggest scientific problem is measurement.
+
+In physics, if I model a pendulum, I can measure angle and velocity. In relationships, the variables are hidden. Trust, affection, resentment, fear, and commitment are not directly observable.
+
+We can measure proxies: self-reports, conversation coding, physiological signals, text timing, facial expression, or daily ratings. But every proxy is imperfect.
+
+This creates a huge risk: the model may look precise while the variables are fuzzy.
+
+For example, suppose I model “love” as $x(t)$. What exactly am I measuring? A daily rating? A behavior? A physiological response? A statement? A memory? A social-media interaction?
+
+This is why I think the best models are the modest ones. They do not try to model all of love. They model something narrower and measurable: positivity versus negativity in conversation, physiological arousal, daily affect, conflict recovery, or perceived responsiveness.
+
+In engineering terms: if the signal is badly defined, the model output is not meaningful.
+
+---
+
+## What I personally took from this
+
+I started with a very naive-sounding question: can romantic relationships be modeled mathematically?
+
+I now think the answer is yes, but only if we are careful about what we mean.
+
+No, there is no equation that captures love. No, a relationship cannot be reduced to two variables. No, dynamical systems will not make people easy to understand.
+
+But yes, the language of dynamical systems is useful.
+
+It gives names to patterns that otherwise feel vague:
+
+- **Feedback**: my state changes your state, and your state changes mine.
+- **Inertia**: emotional states carry over.
+- **Attractors**: couples return to certain patterns.
+- **Basins**: the same event can have different outcomes depending on where the system already is.
+- **Thresholds**: people respond only after signals become strong enough.
+- **Repair**: stability depends on recovery, not the absence of perturbation.
+- **Coupling**: two people can regulate or dysregulate each other.
+
+As someone who often understands the world better through systems than through pure emotional intuition, I found this comforting. Not because it makes relationships simple, but because it makes some of the complexity legible.
+
+Maybe the point of mathematics here is not to reduce love. Maybe it is to give us a cleaner language for patterns we already feel but cannot easily describe.
+
+The most useful conclusion for me is this:
+
+**A relationship is not just about how two people feel. It is about how those feelings evolve together over time.**
+
+That is the dynamical systems view.
+
+And honestly, that feels like a pretty good way to think about it.
+
+---
+
+## Sources I looked at
+
+- Steven H. Strogatz, “Love Affairs and Differential Equations,” *Mathematics Magazine*, 1988.
+- J. C. Sprott, “Dynamical Models of Love,” *Nonlinear Dynamics, Psychology, and Life Sciences*, 2004.
+- Sergio Rinaldi, “Love Dynamics: The Case of Linear Couples,” *Applied Mathematics and Computation*, 1998.
+- Sergio Rinaldi, “Laura and Petrarch: An Intriguing Case of Cyclical Love Dynamics,” *SIAM Journal on Applied Mathematics*, 1998.
+- Sergio Rinaldi, Fabio Della Rossa, Fabio Dercole, Alessandro Gragnani, and Pietro Landi, “Love and Appeal in Standard Couples,” *International Journal of Bifurcation and Chaos*, 2010.
+- John Gottman, Catherine Swanson, and James Murray, “The Mathematics of Marital Conflict: Dynamic Mathematical Nonlinear Modeling of Newlywed Marital Interaction,” *Journal of Family Psychology*, 1999.
+- John Gottman, James Murray, Catherine Swanson, Rebecca Tyson, and Kristin Swanson, *The Mathematics of Marriage: Dynamic Nonlinear Models*, MIT Press.
+- Emilio Ferrer and Jonathan Helm, “Dynamical Systems Modeling of Physiological Coregulation in Dyadic Interactions,” *International Journal of Psychophysiology*, 2013.
+- Jennifer Steele and Emilio Ferrer, “Latent Differential Equation Modeling of Self-Regulatory and Coregulatory Affective Processes,” *Multivariate Behavioral Research*, 2011.
