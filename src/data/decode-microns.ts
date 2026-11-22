@@ -1,4 +1,5 @@
 import type { Cell, Point3 } from "./dendrites";
+import { decodeSomata } from "./decode-somata";
 
 interface PackedCell {
   id: string;
@@ -7,14 +8,20 @@ interface PackedCell {
   radius: number;
   color: string;
   paths: string;
+  radii?: string;
+  axons?: string;
 }
 
 // Each path starts at an offset from the soma and continues as signed x/y/z
 // steps. Varints keep the many short steps on fine branches small on the wire.
 export function decodeMicrons(records: readonly PackedCell[]): Cell[] {
-  return records.map(({ soma, radius, color, paths }) => {
+  const surfaces = decodeSomata();
+  return records.map(({ id, soma, radius, color, paths, radii, axons }) => {
     const bytes = atob(paths);
-    let cursor = 0;
+    const radiusBytes = radii ? atob(radii) : null;
+    const compartments = axons ? atob(axons) : null;
+    let cursor = 0,
+      radiusIndex = 0;
 
     function readUnsigned() {
       let value = 0;
@@ -44,12 +51,31 @@ export function decodeMicrons(records: readonly PackedCell[]): Cell[] {
       });
     }
 
-    const branches = Array.from({ length: readUnsigned() }, () => {
+    const branches = Array.from({ length: readUnsigned() }, (_, i) => {
       const width = readUnsigned() / 100;
-      return { width, points: readPath() };
+      const points = readPath();
+      const localRadii = radiusBytes
+        ? points.map(() => radiusBytes.charCodeAt(radiusIndex++) / 40)
+        : undefined;
+      const axon = compartments
+        ? Boolean(compartments.charCodeAt(i >> 3) & (1 << (i % 8)))
+        : false;
+      return { width, points, radii: localRadii, axon };
     });
     const signals = Array.from({ length: readUnsigned() }, readPath);
-    if (cursor !== bytes.length) throw new Error("Unexpected MICrONS geometry");
-    return { soma, radius, color, branches, signals };
+    if (
+      cursor !== bytes.length ||
+      (radiusBytes && radiusIndex !== radiusBytes.length) ||
+      (compartments && compartments.length !== Math.ceil(branches.length / 8))
+    )
+      throw new Error("Unexpected MICrONS geometry");
+    return {
+      soma,
+      radius,
+      color,
+      branches,
+      signals,
+      surface: surfaces.get(id),
+    };
   });
 }

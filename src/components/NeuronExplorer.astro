@@ -17,8 +17,8 @@ import volumeUrl from "@/data/microns-volume.json?url";
     <img
       class="volume-poster"
       src="/images/microns-field.webp"
-      width="800"
-      height="507"
+      width="1152"
+      height="729"
       alt=""
       fetchpriority="high"
     />
@@ -105,6 +105,11 @@ import volumeUrl from "@/data/microns-volume.json?url";
   }
   .volume-poster {
     object-fit: cover;
+  }
+  @media (min-width: 761px) {
+    .volume-poster {
+      transform: translateX(8%);
+    }
   }
   canvas {
     visibility: hidden;

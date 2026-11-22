@@ -7,9 +7,12 @@ export interface Point3 {
 export interface Branch {
   points: Point3[];
   width: number;
+  radii?: number[];
+  axon?: boolean;
 }
 export interface Cell {
   soma: Point3;
+  surface?: { positions: number[]; indices: number[] };
   radius: number;
   color: string;
   branches: Branch[];

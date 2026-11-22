@@ -1,89 +1,220 @@
 import type { Cell, Point3 } from "../data/dendrites";
 
+import { cellPigment, endpointRadii, somaAxes } from "./neuron-style";
+
+// Each neurite segment is an instanced tapered capsule. For somas, the second
+// point defines the anatomical long axis, and the second radius is its elongation.
 const vertexSource = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 startPoint;
 layout(location=1) in vec3 endPoint;
 layout(location=2) in vec3 pigment;
-layout(location=3) in float weight;
+layout(location=3) in vec2 radii;
 layout(location=4) in vec2 corner;
-
 uniform vec4 rotation;
 uniform vec2 viewport;
-uniform vec4 view; // scale, offset x, offset y, fiber width multiplier
+uniform vec4 view;
 uniform bool soma;
+uniform bool membrane;
+out vec3 surfaceNormal;
+out float surfaceDepth;
 out vec2 local;
-flat out float span;
-flat out float radius;
+flat out vec2 depths;
+flat out vec2 worldRadius;
+flat out vec2 screenRadius;
+flat out vec3 tangent;
 flat out vec3 color;
-flat out float light;
-
-vec3 project(vec3 p) {
+flat out float span;
+vec3 rotatePoint(vec3 p) {
   float depth = rotation.x*p.z - rotation.y*p.x;
-  vec3 r = vec3(rotation.x*p.x + rotation.y*p.z,
-                rotation.z*p.y - rotation.w*depth,
-                rotation.z*depth + rotation.w*p.y);
-  float size = .96 / (1. - r.z/1200.);
-  return vec3((vec2(320.,202.5) + r.xy*size)*view.x + view.yz, r.z);
+  return vec3(rotation.x*p.x + rotation.y*p.z,
+              rotation.z*p.y - rotation.w*depth,
+              rotation.z*depth + rotation.w*p.y);
 }
-
+float projectionScale(float z) { return .98*view.x/(1.-z/800.); }
 void main() {
-  vec3 a = project(startPoint);
-  vec3 b = project(endPoint);
-  float z = (a.z+b.z)*.5;
-  float size = .96 / (1. - z/1200.);
-  vec2 tangent = b.xy - a.xy;
-  span = length(tangent);
-  tangent = soma || span < .001 ? vec2(1.,0.) : tangent / span;
-  vec2 normal = vec2(-tangent.y,tangent.x);
-  radius = soma ? max(1.25, weight*size)*view.x : weight*size*view.w*view.x*.5;
-  float halo = soma ? 3. : 2.5;
-  float pad = radius*halo+1.;
-  float x = corner.x < 0. ? -pad : span+pad;
-  float y = corner.y*pad;
-  local = vec2(x,y);
-  vec2 pixel = a.xy + x*tangent + y*normal;
-  gl_Position = vec4(pixel/viewport*vec2(2.,-2.)+vec2(-1.,1.),0.,1.);
-  light = .33+.67*pow(clamp((z+165.)/305.,0.,1.),.62);
+  vec3 a = rotatePoint(startPoint);
   color = pigment;
+  if (membrane) {
+    vec2 pixel = a.xy*projectionScale(a.z) + vec2(320.,202.5)*view.x + view.yz;
+    vec2 normalized = pixel/viewport*vec2(2.,-2.) + vec2(-1.,1.);
+    float w = 1.-a.z/800.;
+    gl_Position = vec4(normalized*w,-a.z*w/900.,w);
+    surfaceNormal = rotatePoint(endPoint);
+    surfaceDepth = a.z;
+    return;
+  }
+  vec3 b = rotatePoint(endPoint);
+  vec2 delta = b.xy*projectionScale(b.z)-a.xy*projectionScale(a.z);
+  span = soma ? 0. : length(delta);
+  vec2 direction = span < .0001 ? vec2(1.,0.) : delta/span;
+  vec2 across = vec2(-direction.y,direction.x);
+  vec3 axis = b-a;
+  tangent = axis/max(length(axis),.0001);
+  depths = vec2(a.z,b.z);
+  worldRadius = soma ? radii : radii*view.w;
+  screenRadius = worldRadius*vec2(projectionScale(a.z),projectionScale(b.z));
+  float pad = (soma ? screenRadius.x*max(1.,radii.y)*1.28 :
+                      max(screenRadius.x,screenRadius.y)) + 2.0;
+  local = vec2(corner.x < 0. ? -pad : span+pad, corner.y*pad);
+  vec2 pixel = a.xy*projectionScale(a.z) + vec2(320.,202.5)*view.x + view.yz
+               + direction*local.x + across*local.y;
+  gl_Position = vec4(pixel/viewport*vec2(2.,-2.)+vec2(-1.,1.), 0., 1.);
 }`;
 
 const fragmentSource = `#version 300 es
 precision highp float;
 in vec2 local;
-flat in float span;
-flat in float radius;
+in vec3 surfaceNormal;
+in float surfaceDepth;
+flat in vec2 depths;
+flat in vec2 worldRadius;
+flat in vec2 screenRadius;
+flat in vec3 tangent;
 flat in vec3 color;
-flat in float light;
+flat in float span;
 uniform bool soma;
+uniform bool fringe;
+uniform bool membrane;
 out vec4 pixel;
+const vec3 field = vec3(.017,.014,.022);
+const vec3 key = vec3(-.49,-.62,.61);
 void main() {
   float coverage;
-  vec3 ink = color;
-  if (soma) {
-    vec2 p = local/max(radius,.001);
-    vec2 oriented = mat2(.949,.315,-.315,.949)*p;
-    vec2 norm = oriented / vec2(.72,1.1);
-    float edge = length(norm);
-    float core = 1. - smoothstep(1.-.55/radius, 1.+.55/radius, edge);
-    float halo = exp(-dot(p,p)*.60)*.20;
-    coverage = max(core,halo);
-    float shine = exp(-dot(norm+vec2(.24,.33),norm+vec2(.24,.33))*4.2);
-    ink = mix(ink, vec3(1.), shine*.58*core);
+  float surfaceZ;
+  vec3 n;
+  if (membrane) {
+    coverage = 1.;
+    surfaceZ = surfaceDepth;
+    n = normalize(surfaceNormal);
+    // A crop can expose the back of a proximal process. Both sides are visible.
+    if (n.z < 0.) n = -n;
+  } else if (soma) {
+    vec2 p = local/max(screenRadius.x,.001);
+    float longitudinal = dot(p,tangent.xy);
+    // A gentle narrowing toward the main process follows each cell's own axis.
+    float neck = smoothstep(-.72,.98,longitudinal);
+    float lateral = dot(p,vec2(-tangent.y,tangent.x));
+    float asymmetry = .045*clamp(lateral,-1.,1.) * (1.-neck);
+    float minor = mix(.99,.65,neck) + asymmetry;
+    float major = worldRadius.y*mix(.96,1.13,neck);
+    float inverseMinor = 1./(minor*minor);
+    float offset = 1./(major*major)-inverseMinor;
+    // Intersect an orthographic view ray with the fitted ellipsoid. Pixels just
+    // beyond the silhouette are retained only for analytic edge antialiasing.
+    float A = inverseMinor+offset*tangent.z*tangent.z;
+    float B = offset*longitudinal*tangent.z;
+    float C = inverseMinor*dot(p,p)+offset*longitudinal*longitudinal-1.;
+    float footprint = sqrt(max(0.,1.+C-B*B/A));
+    float edgePixels = max(fwidth(footprint),.001);
+    coverage = clamp(.5+(1.-footprint)/edgePixels,0.,1.);
+    float root = (-B+sqrt(max(0.,B*B-A*C)))/A;
+    vec3 samplePoint = vec3(p,root);
+    n = normalize(samplePoint*inverseMinor+tangent*(offset*dot(samplePoint,tangent)));
+    surfaceZ = depths.x + root*worldRadius.x;
   } else {
-    vec2 outside = vec2(local.x - clamp(local.x,0.,span),local.y);
-    float d = length(outside);
-    // Integrate narrow, subpixel fibers over a one-pixel footprint.
-    float core = clamp(radius+.5-d,0.,1.) - clamp(.5-radius-d,0.,1.);
-    float glow = .13 * smoothstep(.6,1.25,radius) * (1.-smoothstep(radius,2.5*radius+.5,d));
-    coverage = max(core,glow);
-    float highlight = clamp(1.-d/max(radius,.01),0.,1.);
-    ink = mix(ink,vec3(1.),.075*highlight*smoothstep(.75,1.5,radius));
+    float along = clamp(local.x/max(span,.0001),0.,1.);
+    float radius = max(.001,mix(screenRadius.x,screenRadius.y,along));
+    float world = mix(worldRadius.x,worldRadius.y,along);
+    vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
+    float dist = length(radial);
+    float center = mix(depths.x,depths.y,along);
+    float aperture = 1.+1.5*(1.-smoothstep(-150.,72.,center));
+    coverage = clamp((radius+.5*aperture-dist)/aperture,0.,1.)
+             - clamp((.5*aperture-radius-dist)/aperture,0.,1.);
+    float incline = length(tangent.xy);
+    vec2 dir = incline < .0001 ? vec2(1.,0.) : tangent.xy/incline;
+    vec3 across = vec3(-dir.y,dir.x,0.);
+    float front = sqrt(max(0.,1.-dot(radial,radial)/(radius*radius)));
+    if (local.x < 0. || local.x > span || span < .001) {
+      n = normalize(across*radial.y/radius + vec3(dir*radial.x/radius,front));
+      surfaceZ = center+world*front;
+    } else {
+      vec3 face = vec3(-dir*tangent.z,incline);
+      n = normalize(across*clamp(radial.y/radius,-1.,1.)+face*front);
+      surfaceZ = center + world*front/max(.4,incline);
+    }
   }
-  float alpha = coverage*light;
-  if (alpha < .003) discard;
-  pixel = vec4(ink,alpha);
+  // Opaque surfaces populate depth first. A second pass blends the uncovered
+  // footprint without letting a translucent edge erase geometry behind it.
+  if (coverage < .008 || ((coverage < .88) != fringe)) discard;
+  gl_FragDepth = clamp(.5-surfaceZ/1800.,0.,1.);
+  float diffuse = clamp(.13+.87*dot(n,key),0.,1.);
+  float lighting = .50+.62*diffuse;
+  float transmittance = clamp(exp(-.006*max(0.,116.-surfaceZ)),.165,.995);
+  vec3 lit = color*lighting;
+  vec3 distant = mix(vec3(dot(lit,vec3(.27,.61,.12))),lit,.66+.34*transmittance);
+  pixel = vec4(mix(field,distant,transmittance),fringe ? coverage : 1.);
 }`;
+
+function softenContour(points: Point3[]): Point3[] {
+  return points.map((p, index) => {
+    if (index === 0 || index === points.length - 1) return p;
+    const a = points[index - 1],
+      b = points[index + 1];
+    const da = Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z);
+    const db = Math.hypot(b.x - p.x, b.y - p.y, b.z - p.z);
+    if (!da || !db) return p;
+    const step = 0.24 * Math.min(da, db);
+    const dx = step * ((a.x - p.x) / da + (b.x - p.x) / db);
+    const dy = step * ((a.y - p.y) / da + (b.y - p.y) / db);
+    const dz = step * ((a.z - p.z) / da + (b.z - p.z) / db);
+    const ratio = Math.min(1, 0.72 / (Math.hypot(dx, dy, dz) || 1));
+    return { x: p.x + dx * ratio, y: p.y + dy * ratio, z: p.z + dz * ratio };
+  });
+}
+
+type Surface = NonNullable<Cell["surface"]>;
+
+// Sum the oriented face-area vectors, then normalize once per shared vertex.
+function appendSurface(
+  cell: Cell,
+  surface: Surface,
+  pigment: number[],
+  packed: number[],
+  triangles: number[],
+) {
+  const { positions, indices } = surface;
+  const normals = new Float32Array(positions.length);
+  const base = packed.length / 9;
+  for (let i = 0; i < indices.length; i += 3) {
+    const a = indices[i] * 3,
+      b = indices[i + 1] * 3,
+      c = indices[i + 2] * 3;
+    const bx = positions[b] - positions[a],
+      by = positions[b + 1] - positions[a + 1],
+      bz = positions[b + 2] - positions[a + 2];
+    const cx = positions[c] - positions[a],
+      cy = positions[c + 1] - positions[a + 1],
+      cz = positions[c + 2] - positions[a + 2];
+    const nx = by * cz - bz * cy,
+      ny = bz * cx - bx * cz,
+      nz = bx * cy - by * cx;
+    for (const offset of [a, b, c]) {
+      normals[offset] += nx;
+      normals[offset + 1] += ny;
+      normals[offset + 2] += nz;
+    }
+    triangles.push(
+      base + indices[i],
+      base + indices[i + 1],
+      base + indices[i + 2],
+    );
+  }
+  for (let i = 0; i < positions.length; i += 3) {
+    const magnitude =
+      Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1;
+    packed.push(
+      cell.soma.x + positions[i],
+      cell.soma.y + positions[i + 1],
+      cell.soma.z + positions[i + 2],
+      normals[i] / magnitude,
+      normals[i + 1] / magnitude,
+      normals[i + 2] / magnitude,
+      ...pigment,
+    );
+  }
+}
 
 export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   let candidate: WebGL2RenderingContext | null;
@@ -91,7 +222,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     candidate = canvas.getContext("webgl2", {
       alpha: false,
       antialias: false,
-      depth: false,
+      depth: true,
       stencil: false,
       powerPreference: "low-power",
       preserveDrawingBuffer: false,
@@ -127,12 +258,15 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   const sorted = cells.slice().sort((a, b) => a.soma.z - b.soma.z);
   const fibers: number[] = [];
   const somas: number[] = [];
+  const meshVertices: number[] = [],
+    triangles: number[] = [];
   function append(
     out: number[],
     a: Point3,
     b: Point3,
     pigment: number[],
-    width: number,
+    radiusA: number,
+    radiusB: number,
   ) {
     out.push(
       a.x,
@@ -144,20 +278,39 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       pigment[0],
       pigment[1],
       pigment[2],
-      width,
+      radiusA,
+      radiusB,
     );
   }
   for (const cell of sorted) {
-    const rgb = [1, 3, 5].map((i) => parseInt(cell.color.slice(i, i + 2), 16));
-    const middle = (Math.min(...rgb) + Math.max(...rgb)) * 0.5;
-    const pigment = rgb.map((c) =>
-      Math.max(0, Math.min(1, (middle + (c - middle) * 1.32 + 12) / 255)),
-    );
-    append(somas, cell.soma, cell.soma, pigment, cell.radius);
-    for (const { points, width } of cell.branches) {
-      const weight = Math.max(0.38, Math.round((width * 1.03 + 0.03) * 3) / 3);
-      for (let i = 1; i < points.length; i++)
-        append(fibers, points[i - 1], points[i], pigment, weight);
+    const pigment = cellPigment(cell.color).map((component) => component / 255);
+    const surface = cell.surface;
+    if (surface?.indices.length) {
+      appendSurface(cell, surface, pigment, meshVertices, triangles);
+    } else {
+      const { axis, elongation } = somaAxes(cell);
+      const pivot = cell.soma;
+      append(
+        somas,
+        pivot,
+        { x: pivot.x + axis.x, y: pivot.y + axis.y, z: pivot.z + axis.z },
+        pigment,
+        cell.radius,
+        elongation,
+      );
+    }
+    for (const branch of cell.branches) {
+      const fiberPigment = branch.axon
+        ? pigment.map((component) => component * 0.78)
+        : pigment;
+      const samples = endpointRadii(branch),
+        points = softenContour(branch.points);
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1],
+          b = points[i];
+        if (a.x === b.x && a.y === b.y && a.z === b.z) continue;
+        append(fibers, a, b, fiberPigment, samples[i - 1], samples[i]);
+      }
     }
   }
 
@@ -172,7 +325,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
     gl.STATIC_DRAW,
   );
-  function upload(data: number[]) {
+  function upload(data: number[], instanced = true) {
     const vao = gl.createVertexArray();
     const buffer = gl.createBuffer();
     if (!vao || !buffer) {
@@ -183,22 +336,45 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < (instanced ? 4 : 3); i++) {
       gl.enableVertexAttribArray(i);
-      gl.vertexAttribPointer(i, i === 3 ? 1 : 3, gl.FLOAT, false, 40, i * 12);
-      gl.vertexAttribDivisor(i, 1);
+      gl.vertexAttribPointer(
+        i,
+        i === 3 ? 2 : 3,
+        gl.FLOAT,
+        false,
+        instanced ? 44 : 36,
+        i * 12,
+      );
+      gl.vertexAttribDivisor(i, instanced ? 1 : 0);
     }
-    gl.bindBuffer(gl.ARRAY_BUFFER, corners);
-    gl.enableVertexAttribArray(4);
-    gl.vertexAttribPointer(4, 2, gl.FLOAT, false, 0, 0);
+    if (instanced) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+      gl.enableVertexAttribArray(4);
+      gl.vertexAttribPointer(4, 2, gl.FLOAT, false, 0, 0);
+    }
     gl.bindVertexArray(null);
     return { vao, buffer };
   }
   const lines = upload(fibers),
     points = upload(somas);
+  const mesh = triangles.length ? upload(meshVertices, false) : null;
+  const elementBuffer = mesh ? gl.createBuffer() : null;
+  if (mesh && elementBuffer) {
+    gl.bindVertexArray(mesh.vao);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, elementBuffer);
+    gl.bufferData(
+      gl.ELEMENT_ARRAY_BUFFER,
+      new Uint32Array(triangles),
+      gl.STATIC_DRAW,
+    );
+    gl.bindVertexArray(null);
+  }
+  const indexCount = triangles.length;
   function dispose() {
     gl.deleteBuffer(corners);
-    for (const layer of [lines, points]) {
+    gl.deleteBuffer(elementBuffer);
+    for (const layer of [lines, points, mesh]) {
       if (layer) {
         gl.deleteVertexArray(layer.vao);
         gl.deleteBuffer(layer.buffer);
@@ -206,20 +382,41 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     }
     gl.deleteProgram(program);
   }
-  if (!lines || !points || gl.getError() !== gl.NO_ERROR) {
+  if (
+    !lines ||
+    !points ||
+    (indexCount && !elementBuffer) ||
+    gl.getError() !== gl.NO_ERROR
+  ) {
     dispose();
     return null;
   }
-  const fiberCount = fibers.length / 10,
-    somaCount = somas.length / 10;
+  const fiberCount = fibers.length / 11,
+    somaCount = somas.length / 11;
   const view = gl.getUniformLocation(program, "view");
   const viewport = gl.getUniformLocation(program, "viewport");
   const rotation = gl.getUniformLocation(program, "rotation");
   const soma = gl.getUniformLocation(program, "soma");
+  const fringe = gl.getUniformLocation(program, "fringe");
+  const membrane = gl.getUniformLocation(program, "membrane");
   gl.useProgram(program);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.clearColor(0, 0, 0, 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.clearDepth(1);
+  gl.clearColor(0.017, 0.014, 0.022, 1);
+
+  function drawSurfaces() {
+    gl.bindVertexArray(lines!.vao);
+    gl.uniform1i(soma, 0);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, fiberCount);
+    if (somaCount) {
+      gl.bindVertexArray(points!.vao);
+      gl.uniform1i(soma, 1);
+      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, somaCount);
+    }
+  }
 
   return {
     dispose,
@@ -232,7 +429,8 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       fiberScale: number,
     ) {
       gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.depthMask(true);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.uniform2f(viewport, canvas.width, canvas.height);
       gl.uniform4f(
         rotation,
@@ -242,12 +440,17 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
         Math.sin(pitch),
       );
       gl.uniform4f(view, scale, offsetX, offsetY, fiberScale);
-      gl.bindVertexArray(lines.vao);
-      gl.uniform1i(soma, 0);
-      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, fiberCount);
-      gl.bindVertexArray(points.vao);
-      gl.uniform1i(soma, 1);
-      gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, somaCount);
+      gl.uniform1i(fringe, 0);
+      if (mesh) {
+        gl.uniform1i(membrane, 1);
+        gl.bindVertexArray(mesh.vao);
+        gl.drawElements(gl.TRIANGLES, indexCount, gl.UNSIGNED_INT, 0);
+        gl.uniform1i(membrane, 0);
+      }
+      drawSurfaces();
+      gl.depthMask(false);
+      gl.uniform1i(fringe, 1);
+      drawSurfaces();
     },
   };
 }

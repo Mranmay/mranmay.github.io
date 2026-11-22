@@ -1,0 +1,53 @@
+---
+interface Props {
+  figure: {
+    src: string;
+    width: number;
+    height: number;
+    alt: string;
+    caption: string;
+    credit: string;
+    source?: string;
+    license?: { label: string; url: string };
+    photoCredits?: string;
+  };
+  title: string;
+}
+const { figure, title } = Astro.props;
+---
+
+<figure>
+  <a class="figure-image" href={figure.src} aria-label={`Open full-size figure: ${title}`}>
+    <img src={figure.src} width={figure.width} height={figure.height} alt={figure.alt} loading="lazy" decoding="async" />
+  </a>
+  <figcaption>
+    <span>{figure.caption}</span>
+    <small>
+      {figure.source ? <a href={figure.source}>{figure.credit}</a> : figure.credit}
+      {figure.license && <> · <a href={figure.license.url}>{figure.license.label}</a></>}
+      {figure.photoCredits && <> · <a href={figure.photoCredits}>Photo credits</a></>}
+    </small>
+  </figcaption>
+</figure>
+<style>
+  figure { margin: 0; }
+  .figure-image {
+    display: grid;
+    align-items: center;
+    justify-items: center;
+    background: #fff;
+    border-radius: 3px;
+    padding: .45rem;
+    cursor: zoom-in;
+  }
+  .figure-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 25rem;
+    object-fit: contain;
+  }
+  figcaption { color: var(--muted); font-size: .92rem; line-height: 1.45; margin-block-start: .65rem; }
+  figcaption small { display: block; font-size: .8rem; line-height: 1.4; margin-block-start: .2rem; }
+  figcaption a { text-underline-offset: .15em; }
+</style>

@@ -4,12 +4,23 @@ import NeuronExplorer from "./NeuronExplorer.astro";
 
 <section class="hero" id="about" aria-labelledby="hero-name">
   <NeuronExplorer />
+  <script type="application/ld+json" is:inline>
+    {
+      "@context": "https://schema.org",
+      "@type": "CreativeWork",
+      "name": "Interactive rendering of mouse visual cortex",
+      "description": "Simplified and color-coded MICrONS neuron reconstructions with simulated activity.",
+      "creditText": "Anatomical data from the MICrONS Consortium",
+      "isBasedOn": "https://doi.org/10.1038/s41586-025-08790-w",
+      "license": "https://creativecommons.org/licenses/by/4.0/"
+    }
+  </script>
   <div class="shell hero-inner">
     <h1 id="hero-name">Mranmay <em>Shetty</em></h1>
     <div class="hero-copy">
-      <p class="hero-intro">
+      <p>
         I’m a research assistant in <a href="https://rossilab.iit.it/">Federico Rossi’s lab</a>
-        at the Istituto Italiano di Tecnologia (IIT) in Rovereto. I use MICrONS to study
+        at the Istituto Italiano di Tecnologia (IIT) in Rovereto. I use <a href="https://www.microns-explorer.org/">MICrONS</a> to study
         which visual inputs reach different branches of a neuron in mouse visual cortex.
       </p>
       <p>
@@ -17,17 +28,17 @@ import NeuronExplorer from "./NeuronExplorer.astro";
         at Harvard Medical School on computational models of visual working memory.
       </p>
       <p>
-        During my MSc at the University of Côte d’Azur, I worked with
-        <a href="https://laurentperrinet.github.io/">Laurent Perrinet</a> and
-        <a href="https://team.inria.fr/biovision/bruno-cessac/">Bruno Cessac</a>
-        on spike inference, and with Bruno on retinal computation. Before that,
+        During my MSc at the University of Côte d’Azur, I worked on spike inference and
+        motif discovery in two-photon calcium recordings with <a href="https://laurentperrinet.github.io/">Laurent Perrinet</a>
+        at the Institut de Neurosciences de la Timone (CNRS) and
+        <a href="https://team.inria.fr/biovision/bruno-cessac/">Bruno Cessac</a> at Inria.
+        Before that,
         I worked on applied AI with <a href="https://scaai.edu.in/faculty">Rahee Walambe</a>
         at the <a href="https://scaai.edu.in/">Symbiosis Centre for Applied Artificial Intelligence</a> in Pune. My Erdős number is 3.
       </p>
     </div>
     <div class="hero-links">
       <a class="button solid" href="/cv/">View CV</a>
-      <a class="button quiet" href="/#publications">Selected publications</a>
     </div>
   </div>
 </section>

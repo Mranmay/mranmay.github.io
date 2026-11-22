@@ -8,7 +8,7 @@ tags: ["Calcium imaging", "Dynamical systems"]
 
 During my MSc internship at the Institut de Neurosciences de la Timone and Inria, I worked with paired electrical and optical recordings from mouse visual cortex. For the same neuron I could see the spike times recorded by an electrode and the fluorescence recorded by a two-photon microscope. If two spikes arrived close together, how much of the second fluorescence peak came from calcium left over from the first?
 
-I start by running the problem forward. I take the spikes as given, choose a model for how calcium and the indicator respond, and predict the optical trace. Then I can ask which parts of the measured waveform that model could plausibly explain. The [Allen Institute calibration dataset](https://brain-map.org/our-research/circuits-behavior/ophys-ephys-calibration-data) has these paired recordings from layer 2/3 pyramidal neurons expressing GCaMP6s or GCaMP6f.
+That question also motivates my independent work on calcium dynamics. I start by running the problem forward. I take the spikes as given, choose a model for how calcium and the indicator respond, and predict the optical trace. Then I can ask which parts of the measured waveform that model could plausibly explain. The [Allen Institute calibration dataset](https://brain-map.org/our-research/circuits-behavior/ophys-ephys-calibration-data) has these paired recordings from layer 2/3 pyramidal neurons expressing GCaMP6s or GCaMP6f.
 
 ## What the decay parameter measures
 

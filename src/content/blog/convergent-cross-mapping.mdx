@@ -47,4 +47,8 @@ I used $a=b=0.2$ and $c=5.7$, started from $(1,0,0)$, and took 15,000 Euler step
 
 Here the two curves rise quickly and nearly coincide by about 320 library points. Both coordinates belong to the same low-dimensional system, and each carries information about its state. This was the check I needed before trying to interpret the weak network result. The same reconstruction code can work on a simple trajectory, while a short history from a single unit can tell me very little about the input driving a much larger network.
 
+## What would this tell me about two neurons?
+
+Imagine recording two neurons while the same grating moves across their receptive fields. The recent activity of one neuron might help predict the other because both see the grating. To ask whether one influences the other, I’d want to compare trials with the same stimulus, check which signal leads, and see whether the prediction survives those controls. The oscillator gives me something a pair of recordings usually can’t: I can switch off the coupling and repeat the experiment. [How time lags affect cross mapping](https://doi.org/10.1038/srep14750)
+
 [Original CCM paper](https://doi.org/10.1126/science.1227079) · [Recurrent-network study](https://doi.org/10.1103/PhysRevResearch.5.043211) · [Sugihara Lab’s Python implementation](https://github.com/SugiharaLab/pyEDM)
