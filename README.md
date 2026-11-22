@@ -1,6 +1,6 @@
 # Mranmay Shetty
 
-Academic portfolio at [mranmay.github.io](https://mranmay.github.io). Astro generates static pages, including the research index, CV, publications, and blog. Use the existing GitHub Pages workflow to deploy by merging into `main`.
+Academic portfolio at [mranmay.github.io](https://mranmay.github.io). Astro generates static pages, with publications on the homepage and dedicated research, CV, and blog pages. Use the existing GitHub Pages workflow to deploy by merging into `main`.
 
 ## Develop
 
@@ -33,4 +33,12 @@ For an interactive figure, use a `.mdx` extension, import an Astro component bel
 
 ## Update the portfolio
 
-Edit project descriptions in `src/data/projects.ts`, the homepage introduction in `src/components/Hero.astro`, the biography in `src/pages/about.astro`, and CV or publication entries in their respective `src/pages/` files.
+Edit project descriptions in `src/data/projects.ts`, the homepage introduction in `src/components/Hero.astro`, the biography in `src/pages/about.astro`, CV entries in `src/pages/cv.astro`, and publications in `src/components/Publications.astro`.
+
+## Homepage neuron data
+
+The homepage displays 46 neighboring mouse visual cortex neurons from the MICrONS Consortium’s `minnie65` materialization v1300. Each cell in `src/data/microns-volume.json` has its original segment ID. Its source SWC file is available at `https://storage.googleapis.com/microns-static-links/skel/swc/dendrite/<id>.swc`. This release contains dendritic skeletons with axons excluded. [MICrONS Explorer](https://www.microns-explorer.org/) · [Static data documentation](https://tutorial.microns-explorer.org/static-repositories.html)
+
+The display uses a spatial neighborhood from a sample of single-root SWC files. Polylines were simplified between branch points and short terminal twigs were omitted. A shared translation and uniform scale preserve the cells’ relative positions. The coordinates were rounded for display. Colors distinguish neighboring cells. The moving pulses are simulated.
+
+MICrONS Consortium et al., “Functional connectomics spanning multiple areas of mouse visual cortex,” *Nature* **640**, 435–447 (2025). Adapted under the Creative Commons Attribution 4.0 International license. [Paper](https://doi.org/10.1038/s41586-025-08790-w) · [License](https://creativecommons.org/licenses/by/4.0/) · [MICrONS citation policy](https://www.microns-explorer.org/citation-policy)

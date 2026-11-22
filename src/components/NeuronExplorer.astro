@@ -1,220 +1,233 @@
 ---
-import { apical, basal } from "@/data/dendrites";
-const compartments = [
-  { name: "apical", arbor: apical },
-  { name: "basal", arbor: basal },
-];
+import volume from "@/data/microns-volume.json";
+import volumeUrl from "@/data/microns-volume.json?url";
+import { volumePoster } from "./neuron-activity";
+
+const poster = volumePoster(volume);
 ---
 
-<figure class="specimen">
-  <svg
-    class="neuron"
-    viewBox="0 0 620 420"
-    role="img"
-    aria-label="Illustrated pyramidal neuron. A long apical trunk branches above the soma, while basal dendrites spread around its base."
+<figure class="specimen" data-neuron data-volume={volumeUrl}>
+  <button
+    type="button"
+    class="stimulus"
+    aria-label="Highlight a neuron in the three-dimensional mouse visual cortex reconstruction"
+    disabled
   >
-    <defs>
-      <pattern
-        id="field-dots"
-        width="18"
-        height="18"
-        patternUnits="userSpaceOnUse"
-        ><circle cx="1" cy="1" r=".8" fill="#91af9e" opacity=".35"
-        ></circle></pattern
-      >
-      <radialGradient id="field-mask"
-        ><stop offset="50%" stop-color="white"></stop><stop
-          offset="100%"
-          stop-color="black"></stop></radialGradient
-      >
-      <mask id="dots-mask"
-        ><ellipse cx="315" cy="201" rx="295" ry="210" fill="url(#field-mask)"
-        ></ellipse></mask
-      >
-    </defs>
-    <rect
-      width="620"
-      height="420"
-      fill="url(#field-dots)"
-      mask="url(#dots-mask)"></rect>
-    {
-      compartments.map(({ name, arbor }) => (
-        <g
-          class={`arbor ${name}`}
-          fill="none"
-          stroke="currentColor"
-          stroke-linecap="round"
-        >
-          {arbor.paths.map((d, i) => (
-            <path d={d} stroke-width={0.8 + i * 0.48} />
-          ))}
-          {arbor.tips.map(({ x, y }) => (
-            <circle cx={x} cy={y} r="1.4" fill="currentColor" stroke="none" />
-          ))}
-        </g>
-      ))
-    }
-    <path
-      class="arbor apical"
-      fill="currentColor"
-      d="M285 269Q297 246 305 218T318 179Q323 159 333 143L338 126Q337 143 332 151T321 181Q316 204 309 223T297 265Z"
-    ></path>
-    <path
-      class="axon"
-      d="M292 269Q304 300 298 327T306 372Q312 383 308 405M299 322Q309 337 326 343T347 356"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"></path>
-    <path
-      class="soma"
-      d="M286 259Q294 249 301 241Q297 257 304 265Q307 269 314 273Q302 272 296 278Q291 278 289 274Q283 268 274 270Q280 265 286 259Z"
-    ></path>
-    <g class="neuron-labels" fill="none" stroke-width="1">
-      <g class="arbor apical"
-        ><path d="M401 115 480 66h74"></path><circle cx="401" cy="115" r="2"
-        ></circle><text x="485" y="58">Apical tuft</text></g
-      >
-      <g class="arbor basal"
-        ><path d="m379 291 86 64h119"></path><circle cx="379" cy="291" r="2"
-        ></circle><text x="470" y="347">Basal dendrites</text></g
-      >
-      <g class="soma-label"
-        ><path d="m281 256-65-32h-103"></path><text x="113" y="217">Soma</text
-        ></g
-      >
-    </g>
-  </svg>
-  <figcaption>
-    <span class="specimen-name">Pyramidal cell <span> / </span> schematic</span>
-    <fieldset class="segments">
-      <legend class="sr-only">Highlight a dendritic compartment</legend>
+    <svg
+      class="volume-poster"
+      viewBox="0 0 640 405"
+      role="img"
+      aria-label="Forty-six neurons from mouse visual cortex, each traced in a different color against black."
+    >
       {
-        ["Whole cell", "Apical", "Basal"].map((label, i) => (
-          <label>
-            <>
-              <input
-                type="radio"
-                name="compartment"
-                value={["all", "apical", "basal"][i]}
-                checked={i === 0}
-              />
-              <span>{label}</span>
-            </>
-          </label>
+        poster.map(({ paths, soma, radius, color, opacity }) => (
+          <g
+            opacity={opacity}
+            stroke={color}
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            {paths.map(({ d, width }) => (
+              <path d={d} stroke-width={width} fill="none" />
+            ))}
+            <ellipse
+              cx={soma.x}
+              cy={soma.y}
+              rx={radius * 0.72}
+              ry={radius * 1.1}
+              fill={color}
+            />
+          </g>
         ))
       }
-    </fieldset>
+    </svg>
+    <canvas aria-hidden="true"></canvas>
+  </button>
+  <figcaption>
+    <div class="volume-caption">
+      <span class="specimen-name"
+        >Mouse visual cortex <span>·</span> {volume.length} neurons</span
+      >
+      <span class="interaction-hint" hidden
+        ><span class="desktop-cue">Click</span><span class="touch-cue">Tap</span
+        > a neuron to highlight it. Drag to rotate.</span
+      >
+    </div>
+    <div class="specimen-controls">
+      <button type="button" class="clear-cell" hidden>Show all</button>
+      <button
+        type="button"
+        class="playback"
+        aria-label="Pause animation"
+        title="Pause animation"
+        hidden
+      >
+        <svg
+          viewBox="0 0 18 18"
+          width="15"
+          height="15"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            class="pause-icon"
+            d="M4.5 3.5H7.5V14.5H4.5ZM10.5 3.5H13.5V14.5H10.5Z"></path>
+          <path class="play-icon" d="M5 3L14 9L5 15Z"></path>
+        </svg>
+      </button>
+    </div>
+    <small class="data-credit"
+      >Dendrites simplified from <a href="https://www.microns-explorer.org/"
+        >MICrONS</a
+      > (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>).
+      Signals are illustrative.</small
+    >
   </figcaption>
 </figure>
+<script>
+  import { activateNeuron } from "./neuron-activity";
+  const figure = document.querySelector<HTMLElement>("[data-neuron]");
+  if (figure) {
+    fetch(figure.dataset.volume!)
+      .then((response) => {
+        if (!response.ok) throw new Error("Neuron data unavailable");
+        return response.json();
+      })
+      .then((cells) => activateNeuron(figure, cells))
+      .catch(() => {
+        /* The static reconstruction remains visible. */
+      });
+  }
+</script>
 <style>
   .specimen {
     margin: 0;
     min-width: 0;
-    align-self: center;
-    color: #b5c5b8;
-  }
-  .neuron {
     width: 100%;
-    height: auto;
+    align-self: center;
+  }
+  .stimulus {
+    position: relative;
     display: block;
-    overflow: visible;
+    width: 100%;
+    padding: 0;
+    aspect-ratio: 640 / 405;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.4rem;
+    background: #000;
+    cursor: grab;
+    touch-action: pan-y pinch-zoom;
+    -webkit-tap-highlight-color: transparent;
   }
-  .apical {
-    color: #ebbd83;
+  .stimulus:active {
+    cursor: grabbing;
   }
-  .basal {
-    color: #a7c9b1;
+  .stimulus:disabled {
+    cursor: default;
   }
-  .axon {
-    color: #92a38f;
+  .volume-poster,
+  canvas {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
-  .soma {
-    fill: #f2cc94;
+  canvas {
+    visibility: hidden;
   }
-  .neuron-labels path,
-  .neuron-labels circle {
-    stroke: currentColor;
-    opacity: 0.6;
+  .ready canvas {
+    visibility: visible;
   }
-  .neuron-labels text {
-    font: 14px var(--mono);
-    fill: currentColor;
-  }
-  .soma-label {
-    color: #bac5af;
-  }
-  .arbor {
-    transition: opacity 0.18s;
-  }
-  .specimen:has(input[value="apical"]:checked) .basal,
-  .specimen:has(input[value="basal"]:checked) .apical {
-    opacity: 0.13;
+  .ready .volume-poster {
+    visibility: hidden;
   }
   figcaption {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
+    gap: 0.22rem 0.75rem;
+    border-top: 1px solid var(--rule);
+    margin-top: 0.5rem;
+    padding-top: 0.65rem;
+  }
+  .volume-caption {
+    display: grid;
+    gap: 0.13rem;
   }
   .specimen-name {
-    font: 0.78rem var(--mono);
+    font: 500 0.95rem/1.4 var(--body);
+    color: var(--ink);
   }
   .specimen-name span {
-    margin-inline: 0.25em;
-    color: #819383;
+    color: var(--muted);
+    padding-inline: 0.1em;
   }
-  .segments {
-    display: inline-flex;
-    border: 1px solid #55695d;
-    padding: 2px;
-    border-radius: 4px;
+  .interaction-hint {
+    font: 0.875rem/1.4 var(--body);
+    color: var(--muted);
   }
-  .segments label {
-    position: relative;
-    cursor: pointer;
+  .data-credit {
+    grid-column: 1/-1;
+    font: 0.77rem/1.45 var(--body);
+    color: var(--muted);
   }
-  .segments span {
-    display: inline-block;
-    padding: 0.28rem 0.55rem;
-    font-size: 0.78rem;
-    border-radius: 2px;
+  .data-credit a {
+    text-underline-offset: 0.19em;
   }
-  .segments input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
+  .specimen-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
-  .segments input:checked + span {
-    background: #c4d2be;
-    color: #15251b;
+  .specimen-controls button {
+    border: 1px solid var(--rule);
+    border-radius: 2rem;
+    color: var(--ink);
+    background: var(--bg);
   }
-  .segments input:focus-visible + span {
-    outline: 2px solid white;
-    outline-offset: 3px;
+  .specimen-controls button:hover {
+    border-color: var(--muted);
   }
-  @media (prefers-reduced-motion: reduce) {
-    .arbor {
-      transition: none;
+  .clear-cell {
+    font: 0.8rem var(--body);
+    min-height: 2.1rem;
+    padding-inline: 0.7rem;
+  }
+  .playback {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  .play-icon,
+  .playback[data-paused] .pause-icon,
+  .touch-cue {
+    display: none;
+  }
+  .playback[data-paused] .play-icon {
+    display: initial;
+  }
+  @media (hover: none), (pointer: coarse) {
+    .touch-cue {
+      display: inline;
+    }
+    .desktop-cue {
+      display: none;
     }
   }
   @media (max-width: 760px) {
-    .specimen {
-      display: grid;
-      justify-items: center;
-      width: 100%;
-    }
-    .neuron {
-      height: clamp(9rem, 24svh, 13rem);
-      width: auto;
-      max-width: 100%;
-    }
-    .neuron-labels {
-      display: none;
-    }
     figcaption {
-      gap: 0.5rem 1rem;
+      margin-top: 0.25rem;
+      padding-top: 0.5rem;
+    }
+    .playback {
+      width: 2.65rem;
+      height: 2.65rem;
+    }
+    .specimen-controls {
+      gap: 0.2rem;
     }
   }
 </style>

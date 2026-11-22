@@ -4,10 +4,10 @@ export const SITE_DESCRIPTION =
   "Mranmay Shetty studies how visual circuits encode what we see and how models remember it. Explore his neuroscience research, publications, CV and writing.";
 
 export const NAV_LINKS = [
+  { title: "About", href: "/#about" },
   { title: "Research", href: "/research/" },
-  { title: "Publications", href: "/publications/" },
+  { title: "Publications", href: "/#publications" },
   { title: "Blog", href: "/blog/" },
-  { title: "About", href: "/about/" },
   { title: "CV", href: "/cv/" },
 ];
 

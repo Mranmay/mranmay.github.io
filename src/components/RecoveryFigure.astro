@@ -73,10 +73,14 @@ function curve(k: number) {
 </figure>
 <style>
   .recovery {
+    --curve: #accdf9;
     padding: clamp(0.8rem, 3vw, 1.6rem);
     border: 1px solid var(--rule);
     border-radius: 4px;
     background: var(--panel);
+  }
+  :global([data-theme="light"]) .recovery {
+    --curve: #315685;
   }
   .recovery figcaption {
     text-align: left;
@@ -105,9 +109,10 @@ function curve(k: number) {
     gap: 0.35rem;
     font-size: 0.9rem;
     cursor: pointer;
+    min-height: 2.5rem;
   }
   input {
-    accent-color: var(--accent);
+    accent-color: var(--curve);
   }
   svg {
     width: 100%;
@@ -127,8 +132,10 @@ function curve(k: number) {
   }
   .curve {
     display: none;
-    stroke: var(--accent);
+    stroke: var(--curve);
     stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .recovery:has(input[value="Slow"]:checked) [data-rate="Slow"],
   .recovery:has(input[value="Moderate"]:checked) [data-rate="Moderate"],

@@ -41,6 +41,7 @@ const trace = Array.from({ length: 301 }, (_, t) => {
                 transform="rotate(-24 143 76)"
               />
               <ellipse
+                class="comparison-field"
                 cx="177"
                 cy="63"
                 rx={8 + i * 8.4}
@@ -52,7 +53,7 @@ const trace = Array.from({ length: 301 }, (_, t) => {
           ))}
           <>
             <circle cx="143" cy="76" r="3" fill="currentColor" />
-            <circle cx="177" cy="63" r="2.5" fill="currentColor" />
+            <circle class="comparison-center" cx="177" cy="63" r="2.5" />
           </>
         </>
       )
@@ -65,11 +66,12 @@ const trace = Array.from({ length: 301 }, (_, t) => {
               <path d={`M10 ${y}h300`} stroke-dasharray="2 4" />
             ))}
           </g>
+          <path d={trace + "V84H10Z"} fill="currentColor" opacity=".07" />
           <path d={trace} stroke="currentColor" stroke-width="2" />
           {spikeTimes.map((t) => (
             <path
               d={`M${10 + t} 103v13`}
-              stroke="currentColor"
+              class="event"
               stroke-width="1.6"
             />
           ))}
@@ -79,13 +81,14 @@ const trace = Array.from({ length: 301 }, (_, t) => {
     {
       id === "visual-memory" && (
         <>
+          <path d="M111 69h16m62 4h16" stroke="currentColor" stroke-dasharray="2 3" />
           {[0, 1, 2].map((i) => (
             <g transform={`translate(${49 + i * 78} ${34 + i * 4})`}>
               <rect
                 width="62"
                 height="68"
                 rx="2"
-                stroke="currentColor"
+                class="stimulus-frame"
                 stroke-width="1.1"
               />
               <g
@@ -128,23 +131,33 @@ const trace = Array.from({ length: 301 }, (_, t) => {
 </div>
 <style>
   .project-art {
-    --ink: #d2c497;
-    background-color: #343729;
-    color: var(--ink);
+    color: #accdf9;
+    background: #101115;
+    border: 1px solid #2d2e35;
     overflow: hidden;
     border-radius: 4px;
   }
+  .comparison-field {
+    stroke: #c4aff2;
+  }
+  .comparison-center {
+    fill: #d5c2ff;
+  }
   .spike-inference {
-    --ink: #add4c1;
-    background-color: #253d34;
+    color: #efaa93;
+  }
+  .event {
+    stroke: #e2d4cb;
   }
   .visual-memory {
-    --ink: #c6bedb;
-    background-color: #373442;
+    color: #c8b7ef;
+  }
+  .stimulus-frame {
+    fill: #1b1b22;
+    stroke: #83818f;
   }
   .retinal-computation {
-    --ink: #e7bcaa;
-    background-color: #483a36;
+    color: #dbd9e8;
   }
   .project-art svg {
     display: block;

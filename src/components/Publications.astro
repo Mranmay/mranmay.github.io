@@ -1,0 +1,120 @@
+---
+import { FULL_NAME } from "@/consts";
+
+const papers = [
+  {
+    year: "2026", venue: "arXiv preprint",
+    title: "Déjà View: A Shared Working-Memory Model for Visual Tasks",
+    authors: "Mranmay Shetty, Gabriel Kreiman",
+    href: "https://arxiv.org/abs/2611.23177",
+  },
+  {
+    year: "2026", venue: "Nature Human Behaviour",
+    title: "Turing-like tests for language and vision demonstrate a narrowing gap between humans and AI",
+    authors: "Mengmi Zhang, Elisa Pavarino, Xiao Liu, …, Mranmay Shetty, …, Gabriel Kreiman",
+    href: "https://doi.org/10.1038/s41562-026-02590-6",
+  },
+  {
+    year: "2025", venue: "Discover Applied Sciences",
+    title: "Ensemble learning and EigenCAM-based feature analysis for improving the performance and explainability of object detection in drone imagery",
+    authors: "Gargi Joshi, Amey Joshi, Mranmay Shetty, Rahee Walambe, Ketan Kotecha, Fabio Scotti, Vincenzo Piuri",
+    href: "https://doi.org/10.1007/s42452-025-06879-5",
+  },
+  {
+    year: "2025", venue: "SSRN preprint · In review",
+    title: "From Neural Signals to Images: Generative Reconstruction of Visual Stimuli from Electroencephalography Signals",
+    authors: "Rahee Walambe, Akshay Kushwaha, Divya Shah, Mranmay Shetty, Vaibhav Tasgaonkar, Ketan Kotecha, Sultan Alfarhood",
+    href: "https://doi.org/10.2139/ssrn.5098699",
+  },
+  {
+    venue: "In review",
+    title: "Machine Learning-Powered Depression Detection: Leveraging Digital Biomarkers for Enhanced Diagnosis and Future Prospects",
+    authors: "Rahee Walambe, Anil Rahate, Rajanikant Ghate, Vaibhav Tasgaonkar, Mranmay Shetty, Sumiti Saharan, Nayan Kalnad, Ketan Kotecha, Ajith Abraham, Ganesashree Selvachandran",
+  },
+];
+---
+
+<section class="shell home-section publications" id="publications" aria-labelledby="publications-heading">
+  <div class="section-head">
+    <h2 id="publications-heading">Publications</h2>
+  </div>
+  <ul class="paper-list">
+    {papers.map(({ year, venue, title, authors, href }) => {
+      const [before, after] = authors.split(FULL_NAME);
+      return (
+        <li>
+          <p class="paper-meta">
+            {year && <span>{year}</span>}
+            {venue}
+          </p>
+          <div class="paper-citation">
+            <h3>{href ? <a href={href}>{title}</a> : title}</h3>
+            <p>{before}<strong>{FULL_NAME}</strong>{after}</p>
+          </div>
+        </li>
+      );
+    })}
+  </ul>
+</section>
+
+<style>
+  .paper-list {
+    padding: 0;
+    margin: 1.6rem 0 0;
+    list-style: none;
+  }
+  .paper-list li {
+    display: grid;
+    grid-template-columns: minmax(9rem, .34fr) minmax(0, 1fr);
+    gap: 1rem 2rem;
+    padding-block: 1.35rem;
+    border-top: 1px solid var(--rule);
+  }
+  .paper-meta {
+    align-self: start;
+    color: var(--muted);
+    font-size: .94rem;
+  }
+  .paper-meta span {
+    display: block;
+    margin-bottom: .2rem;
+    font: .88rem/1.4 var(--mono);
+    color: var(--ink);
+  }
+  .paper-citation h3 {
+    font-size: clamp(1.45rem, 2.2vw, 1.95rem);
+    line-height: 1.2;
+    text-wrap: pretty;
+  }
+  .paper-citation h3 a {
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-decoration-thickness: 1px;
+    text-underline-offset: .16em;
+  }
+  .paper-citation h3 a:hover, .paper-citation h3 a:focus-visible {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+  }
+  .paper-citation p {
+    margin-top: .55rem;
+    color: var(--muted);
+    font-size: .95rem;
+    line-height: 1.5;
+  }
+  .paper-citation strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  @media (max-width: 680px) {
+    .paper-list li {
+      grid-template-columns: 1fr;
+      gap: .4rem;
+      padding-block: 1.1rem;
+    }
+    .paper-meta span {
+      display: inline;
+      margin-right: .65rem;
+    }
+  }
+</style>

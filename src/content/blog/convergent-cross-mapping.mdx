@@ -1,0 +1,21 @@
+---
+title: "Testing Convergent Cross Mapping on a Rössler Oscillator"
+description: "How much of one signal can I recover from the history of another? A Rössler simulation gives me a system whose equations I can inspect."
+pubDate: 2026-11-23
+author: Mranmay Shetty
+tags: ["Dynamical systems", "CCM"]
+---
+
+In December 2025 I explored convergent cross mapping (CCM) with a model whose three variables I could observe directly. I simulated a Rössler oscillator, set aside its initial transient, and asked how well the history of one coordinate could reconstruct another. That gave me a way to check each step before using the method on a recurrent network.
+
+## Building a state from one trace
+
+Suppose I only keep the $y$ coordinate. Two moments can have the same $y$ value even though the oscillator is rising in one and falling in the other. To distinguish them, I describe each moment with three measurements, for example $(y_t, y_{t-2}, y_{t-4})$. Two nearby points in this space have similar *recent histories*. I keep the corresponding $x_t$ value at each point so I can later test a reconstruction.
+
+## Growing the library
+
+I take an initial stretch of the recording as my library. For a later moment, I find the four closest histories in that library and average their $x$ values, giving closer neighbors more weight. This produces an estimate of $x$ using only the query's $y$ history. I can now compare those estimates with the $x$ values I held out.
+
+I repeat the calculation with longer libraries and plot the correlation between estimated and observed $x$. Then I exchange the roles of $x$ and $y$. The direction matters. If a driver leaves a trace in a responding system, the *response* can carry information about the *driver*. In the Rössler equations the coordinates interact, so I use this example to check reconstruction. A separate simulation, in which a Rössler oscillator drives a 100-unit recurrent rate network, gives me a directional connection I set myself.
+
+[Read the original CCM paper](https://doi.org/10.1126/science.1227079) · [Explore the Sugihara Lab’s Python implementation](https://github.com/SugiharaLab/pyEDM)

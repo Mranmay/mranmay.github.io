@@ -1,6 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Hero from "@/components/Hero.astro";
+import Publications from "@/components/Publications.astro";
 import ProjectArt from "@/components/ProjectArt.astro";
 import { projects } from "@/data/projects";
 import { getCollection } from "astro:content";
@@ -12,6 +13,7 @@ const posts = (await getCollection("blog")).sort(
 
 <Layout title="Mranmay Shetty | Computational Neuroscience">
   <Hero />
+  <Publications />
   <section class="shell home-section" aria-labelledby="research-title">
     <div class="section-head">
       <h2 id="research-title">Selected research</h2><a
@@ -40,13 +42,15 @@ const posts = (await getCollection("blog")).sort(
       >
         <div class="section-head">
           <>
-            <h2 id="writing-title">Latest writing</h2>
+            <h2 id="writing-title">Blog</h2>
             <a class="text-link" href="/blog/">
               All posts
             </a>
           </>
         </div>
-        <BlogPostCard post={posts[0]} />
+        <div class="home-posts">
+          {posts.slice(0, 3).map((post) => <BlogPostCard post={post} />)}
+        </div>
       </section>
     )
   }

@@ -71,3 +71,22 @@ const current = Astro.url.pathname.split("/")[1];
     </svg>
   </button>
 </div>
+
+{
+  !current && (
+    <script is:inline>
+      (() => {
+        const sections = document.querySelectorAll('.masthead nav a[href^="/#"]');
+        function updateCurrentSection() {
+          const hash = window.location.hash || "#about";
+          for (const link of sections) {
+            if (link.hash === hash) link.setAttribute("aria-current", "location");
+            else link.removeAttribute("aria-current");
+          }
+        }
+        updateCurrentSection();
+        window.addEventListener("hashchange", updateCurrentSection);
+      })();
+    </script>
+  )
+}
