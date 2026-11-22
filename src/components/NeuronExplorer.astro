@@ -58,8 +58,6 @@ import volumeUrl from "@/data/microns-volume.json?url";
 <style>
   .specimen {
     --field-matte: #000;
-    --poster-position: 50%;
-    --portrait-zoom: 1;
     --control-ink: #fff;
     --control-bg: #0a0a0c99;
     --control-border: #fff6;
@@ -109,33 +107,19 @@ import volumeUrl from "@/data/microns-volume.json?url";
     pointer-events: none;
   }
   .volume-poster {
-    background: var(--field-matte) url("/images/microns-tissue-dark.webp")
-      var(--poster-position) center/cover no-repeat;
+    background: var(--field-matte) url("/images/microns-tissue-glow-dark.webp")
+      center/cover no-repeat;
     background-image: image-set(
-      url("/images/microns-tissue-dark.avif") type("image/avif"),
-      url("/images/microns-tissue-dark.webp") type("image/webp")
+      url("/images/microns-tissue-glow-dark.avif") type("image/avif"),
+      url("/images/microns-tissue-glow-dark.webp") type("image/webp")
     );
   }
   :global([data-theme="light"]) .volume-poster {
-    background-image: url("/images/microns-tissue-light.webp");
+    background-image: url("/images/microns-tissue-glow-light.webp");
     background-image: image-set(
-      url("/images/microns-tissue-light.avif") type("image/avif"),
-      url("/images/microns-tissue-light.webp") type("image/webp")
+      url("/images/microns-tissue-glow-light.avif") type("image/avif"),
+      url("/images/microns-tissue-glow-light.webp") type("image/webp")
     );
-  }
-  @media (max-width: 760px) and (orientation: portrait) {
-    .specimen {
-      --poster-position: 67%;
-      --portrait-zoom: 1.24;
-    }
-    .volume-poster {
-      background-size: auto 124%;
-    }
-    .volume-poster,
-    canvas {
-      transform: translateY(-33%);
-      mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
-    }
   }
   canvas {
     visibility: hidden;
@@ -167,6 +151,12 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .playback:focus-visible {
     background: var(--field-matte);
     border-color: var(--control-ink);
+  }
+  @media (max-width: 760px) {
+    .playback {
+      right: 0.75rem;
+      bottom: 2.5rem;
+    }
   }
   .play-icon,
   .playback[data-paused] .pause-icon {
