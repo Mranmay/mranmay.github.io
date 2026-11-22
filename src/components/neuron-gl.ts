@@ -72,8 +72,8 @@ void main() {
   float pad = (soma ? screenRadius.x*max(1.,radii.y)*1.28 :
                       max(screenRadius.x,screenRadius.y)) + 2.;
   if (glowPass) {
-    if (soma) pad = 3.6*screenRadius.x+1.;
-    else pad += 12.*projectionScale(max(depths.x,depths.y));
+    if (soma) pad = 4.4*screenRadius.x+1.;
+    else pad += 21.*projectionScale(max(depths.x,depths.y));
   }
   local = vec2(corner.x < 0. ? -pad : span+pad, corner.y*pad);
   vec2 pixel = a.xy*projectionScale(a.z) + vec2(320.,202.5)*view.x + view.yz
@@ -102,6 +102,17 @@ uniform bool lightTheme;
 out vec4 pixel;
 const vec3 field = vec3(0.);
 const vec3 key = vec3(-.49,-.62,.61);
+// Integrating the optical footprint along a projected cable avoids artificial
+// beads where consecutive segments meet. Nearby physical branches still add.
+float cableScatter(float sigma,float radius,float scale) {
+  float along=local.x/scale;
+  float lengthWorld=span/scale;
+  float reach=2.2*sigma;
+  float endFalloff=smoothstep(-reach,reach,along)-
+                   smoothstep(-reach,reach,along-lengthWorld);
+  float radial=max(0.,abs(local.y)/scale-radius)/sigma;
+  return endFalloff*exp(-.5*radial*radial);
+}
 void main() {
   float coverage;
   float surfaceZ;
@@ -113,20 +124,17 @@ void main() {
     vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
     float d = length(radial)/scale;
     float r = mix(worldRadius.x,worldRadius.y,along);
-    float outside = max(0.,d-r);
-    // Two spatial scales keep a thin, luminous cable inside a soft spill of
-    // light. Only measured neurites in a focal region reach this draw pass.
-    float narrow = exp(-1.26*outside*outside);
-    float broad = exp(-.054*outside*outside);
-    float atmosphere = .68+.32*smoothstep(-120.,120.,z);
+    float atmosphere = .60+.40*smoothstep(-125.,120.,z);
     float strength;
     if (soma) {
       float q = d/max(.001,r);
-      strength = atmosphere*(.146*exp(-.5*q*q)+.032*exp(-.16*q*q));
+      strength = atmosphere*(.44*exp(-.36*q*q)+.12*exp(-.095*q*q));
     } else {
-      strength = atmosphere*(.80*narrow+.13*broad);
+      strength = atmosphere*(.38*cableScatter(.82,r,scale)+
+                             .28*cableScatter(3.75,r,scale)+
+                             .085*cableScatter(7.3,r,scale));
     }
-    vec3 spill = lightTheme ? (vec3(1.)-color)*strength*.76 : color*strength;
+    vec3 spill = lightTheme ? (vec3(1.)-color)*strength*.43 : color*strength*.66;
     if (max(max(spill.r,spill.g),spill.b) < .004) discard;
     gl_FragDepth = clamp(.5-(soma ? z : z+r)/1800.,0.,1.);
     pixel = vec4(lightTheme ? vec3(1.)-spill : spill,1.);
@@ -252,15 +260,17 @@ void main(){
   float levels=log2(deviceScale);
   vec3 crisp=exposure(uv,0.);
   vec3 skin=neighborhood(texel,.70*deviceScale,.55+levels);
-  vec3 near=neighborhood(texel,1.25*deviceScale,1.25+levels);
-  vec3 wide=neighborhood(texel,5.8*deviceScale,2.75+levels);
-  vec3 tissueColor=mix(crisp,skin,lightTheme ? .26 : .46);
-  float strength=lightTheme ? .45 : 1.;
-  // Colored scattering is limited to regions containing labeled material.
-  float localChroma = max(max(near.r,near.g),near.b)-min(min(near.r,near.g),near.b);
-  vec3 scatter=strength*(near*.17+wide*.165)*(1.+.55*smoothstep(.04,.32,localChroma));
-  vec3 radiance=1.-(1.-tissueColor)*(1.-scatter);
-  radiance=mix(radiance,vec3(dot(radiance,vec3(.2126,.7152,.0722))),.052);
+  vec3 near=neighborhood(texel,1.9*deviceScale,1.50+levels);
+  vec3 wide=neighborhood(texel,7.5*deviceScale,3.05+levels);
+  // Preserve light in total while moving it out of sharp cable cores.
+  // The wider kernels scatter pigment already present in the tissue.
+  vec3 weights=lightTheme ? vec3(.49,.20,.18) : vec3(.42,.24,.27);
+  vec3 radiance=crisp*weights.x+skin*weights.y+near*weights.z+
+                wide*(lightTheme ? .17 : .20);
+  float peak=max(max(radiance.r,radiance.g),radiance.b);
+  float retained=lightTheme ? .92 : mix(.747,.874,smoothstep(.055,.53,peak));
+  radiance*=retained*(1.-.075*smoothstep(.62,1.,peak));
+  radiance=max(vec3(0.),mix(vec3(dot(radiance,vec3(.2126,.7152,.0722))),radiance,1.065));
   pixel=vec4(lightTheme ? vec3(1.)-radiance : radiance,1.);
 }`;
 
@@ -790,9 +800,12 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       gl.uniform1i(fringe, 1);
       drawSurfaces();
       if (clouds || lightLayer) {
-        // Min/max blending prevents successive short trace samples from building
-        // artificial beads of light at the joins. Occluders still own depth.
-        gl.blendEquation(light ? gl.MIN : gl.MAX);
+        // Independent nearby sources accumulate without clipping. On white,
+        // their complementary pigment attenuates the light through the field.
+        gl.blendFunc(
+          light ? gl.ZERO : gl.ONE,
+          light ? gl.SRC_COLOR : gl.ONE_MINUS_SRC_COLOR,
+        );
         gl.uniform1i(glow, 1);
         if (clouds) {
           gl.uniform1i(soma, 1);
@@ -805,7 +818,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
           gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, lightCount);
         }
         gl.uniform1i(glow, 0);
-        gl.blendEquation(gl.FUNC_ADD);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
       optics?.present(light, scale);
     },

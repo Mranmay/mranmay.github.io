@@ -253,6 +253,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   figure.classList.toggle("poster-active", posterActive);
   const playback = figure.querySelector<HTMLButtonElement>(".playback")!;
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const compactLayout = matchMedia("(max-width: 760px)");
   const neurons = cells.map(prepare);
   const sorted = neurons.slice();
   const halos = new Map<string, HTMLCanvasElement>();
@@ -289,7 +290,9 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   let dragging = false;
   const background = document.createElement("canvas");
   const buffer = background.getContext("2d", { alpha: false })!;
-  const scattering = [2, 6, 25].map((divisor) => {
+  const emissionSurface = document.createElement("canvas");
+  const emissionPen = emissionSurface.getContext("2d", { alpha: false })!;
+  const scattering = [2, 6, 12, 32].map((divisor) => {
     const layer = document.createElement("canvas");
     return { divisor, layer, pen: layer.getContext("2d", { alpha: false })! };
   });
@@ -355,6 +358,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       buffer.globalAlpha = 1;
       buffer.fillStyle = wash;
       buffer.fill(silhouette);
+      emissionPen.fill(silhouette);
       buffer.globalAlpha = 0.64;
       for (const key of Array.from(faces.keys()).sort((a, b) => a - b)) {
         const substrate = lightTheme ? 255 : 0;
@@ -430,23 +434,40 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     }
     buffer.globalAlpha = 1;
   }
+  function prepareEmissionSurface() {
+    const width = Math.max(1, Math.ceil(background.width / 3));
+    const height = Math.max(1, Math.ceil(background.height / 3));
+    if (width !== emissionSurface.width || height !== emissionSurface.height) {
+      emissionSurface.width = width;
+      emissionSurface.height = height;
+    }
+    emissionPen.setTransform(1, 0, 0, 1, 0, 0);
+    emissionPen.fillStyle = lightTheme ? "#fff" : "#000";
+    emissionPen.fillRect(0, 0, width, height);
+    emissionPen.setTransform(scale / 3, 0, 0, scale / 3, offsetX / 3, offsetY / 3);
+    emissionPen.lineWidth = 1.5;
+    emissionPen.lineCap = "round";
+    emissionPen.lineJoin = "round";
+  }
   function scatterLight() {
     const { width, height } = background;
-    // Sample one untouched, depth-composited frame at three optical scales.
-    for (const { layer, pen } of scattering) {
+    // Fine scatter follows the whole stack. At wider scales only the cell
+    // bodies and their proximal, thick branches contribute appreciable light.
+    for (const { layer, divisor, pen } of scattering) {
       pen.imageSmoothingQuality = "high";
-      pen.drawImage(background, 0, 0, layer.width, layer.height);
+      pen.drawImage(divisor < 12 ? background : emissionSurface, 0, 0, layer.width, layer.height);
     }
     buffer.save();
     buffer.setTransform(1, 0, 0, 1, 0, 0);
     buffer.imageSmoothingQuality = "high";
     for (const { layer, divisor } of scattering) {
       if (divisor === 2) {
-        buffer.globalCompositeOperation = "source-over";
-        buffer.globalAlpha = lightTheme ? 0.26 : 0.46;
+        buffer.globalAlpha = lightTheme ? 0.47 : 0.63;
+      } else if (divisor === 6) {
+        buffer.globalAlpha = lightTheme ? 0.26 : 0.33;
       } else {
         buffer.globalCompositeOperation = lightTheme ? "multiply" : "screen";
-        buffer.globalAlpha = (divisor === 6 ? 0.23 : 0.18) * (lightTheme ? 0.5 : 1);
+        buffer.globalAlpha = (divisor === 12 ? 0.55 : 0.79) * (lightTheme ? 0.58 : 1);
       }
       buffer.drawImage(layer, 0, 0, width, height);
     }
@@ -542,6 +563,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       }
     }
     paintLocalLight();
+    prepareEmissionSurface();
     bins.forEach((bin, i) => {
       const depth = brightness(-165 + i * 30);
       for (const s of bin.values()) {
@@ -553,6 +575,10 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         buffer.fill(s.body);
         buffer.fillStyle = surfaceInk(s.neuron.pigment, 1.04 + 0.09 * emission, depth ** 0.66);
         buffer.fill(s.trunk);
+        const spill = surfaceInk(s.neuron.pigment, 1.03, (0.48 + 0.49 * emission) * depth ** 0.72);
+        emissionPen.strokeStyle = emissionPen.fillStyle = spill;
+        emissionPen.fill(s.trunk);
+        emissionPen.stroke(s.trunk);
         buffer.globalAlpha = 0.7;
         buffer.fillStyle = surfaceInk(s.neuron.pigment, 1.07, depth);
         buffer.fill(s.facet);
@@ -589,9 +615,6 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     scatterLight();
   }
   function pulseVisibleArbor() {
-    const rect = canvas.getBoundingClientRect();
-    const top = Math.max(0, (stimulus.getBoundingClientRect().top - rect.top) / rect.height);
-    const portrait = top > 0.15;
     const pool = cycle % 4 === 3 ? neurons : featured;
     for (let i = 0; i < pool.length; i++) {
       const neuron = pool[(cycle * 19 + i * 7 + 2) % pool.length];
@@ -601,8 +624,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       const sample = project(neuron.points[signal.points[j]]);
       const x = (offsetX + scale * sample.x) / canvas.width;
       const y = (offsetY + scale * sample.y) / canvas.height;
-      if (x < (portrait ? 0.06 : 0.43) || x > 0.94 ||
-          y < top + 0.06 || y > top + (portrait ? 0.31 : 0.83)) continue;
+      if (x < (compactLayout.matches ? 0.06 : 0.43) || x > 0.94 ||
+          y < (compactLayout.matches ? 0.18 : 0.06) || y > 0.83) continue;
       const duration = Math.max(0.56, Math.min(2.3, signal.length / 112));
       pulses.push({
         neuron, signal, duration,
@@ -837,12 +860,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
           layer.height = Math.max(1, Math.ceil(h / divisor));
         }
       }
-      const style = getComputedStyle(figure);
-      const portraitZoom = parseFloat(style.getPropertyValue("--portrait-zoom")) || 1;
-      const cover = Math.max(w / W, h / H) * portraitZoom;
-      const position = parseFloat(style.getPropertyValue("--poster-position")) / 100 || 0.5;
-      scale = cover * 1.05;
-      offsetX = w / 2 - 318 * scale + (position - 0.5) * (w - cover * W);
+      scale = Math.max(w / W, h / H) * 1.05;
+      offsetX = w / 2 - 318 * scale;
       offsetY = h / 2 - 189 * scale;
       geometry(true);
       paint();
@@ -1005,8 +1024,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     const r = canvas.getBoundingClientRect();
     if (e.detail === 0) {
       const index = cycle++;
-      const top = Math.max(0, (stimulus.getBoundingClientRect().top - r.top) / r.height);
-      const y = top + (1 - top) * (0.4 + 0.16 * Math.cos(index * 1.71));
+      const y = 0.4 + 0.16 * Math.cos(index * 1.71);
       return choose({
         x:
           (canvas.width * (0.6 + 0.19 * Math.sin(index * 2.27)) - offsetX) /
