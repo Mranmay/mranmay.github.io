@@ -226,7 +226,7 @@ body > header {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: linear-gradient(90deg, rgb(0 0 0 / 88%) 0%, rgb(0 0 0 / 82%) 29%, rgb(0 0 0 / 66%) 46%, transparent 70%);
+  background: radial-gradient(ellipse 48% 72% at 23% 53%, rgb(0 0 0 / 82%) 0%, rgb(0 0 0 / 78%) 36%, rgb(0 0 0 / 48%) 61%, rgb(0 0 0 / 12%) 82%, transparent 100%);
 }
 .hero-inner {
   position: relative;
@@ -651,7 +651,8 @@ body > footer {
     padding: 0.1rem 0.65rem;
   }
   .hero::after {
-    background: linear-gradient(180deg, rgb(0 0 0 / 70%) 0, rgb(0 0 0 / 54%) 4.8rem, transparent 8rem, rgb(0 0 0 / 68%) 15rem, rgb(0 0 0 / 86%) 23rem, rgb(0 0 0 / 90%) 100%);
+    background:
+      linear-gradient(180deg, rgb(0 0 0 / 42%) 0, rgb(0 0 0 / 20%) 4rem, transparent 6.5rem, transparent 11rem, rgb(0 0 0 / 58%) 17rem, rgb(0 0 0 / 72%) 23rem, rgb(0 0 0 / 61%) 100%);
   }
   .hero-inner {
     min-height: auto;

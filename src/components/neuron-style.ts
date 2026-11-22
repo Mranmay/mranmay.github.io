@@ -1,43 +1,23 @@
 import type { Branch, Cell, Point3 } from "../data/dendrites";
 
 type RGB = [number, number, number];
-// Earth and mineral tones leave luminance available for surface shading and activity.
-const pigments: [number, RGB][] = [
-  [0, [205, 144, 129]],
-  [32, [205, 168, 124]],
-  [62, [187, 181, 131]],
-  [100, [151, 174, 142]],
-  [150, [123, 172, 157]],
-  [190, [124, 164, 177]],
-  [220, [140, 156, 183]],
-  [259, [155, 151, 181]],
-  [296, [178, 151, 173]],
-  [330, [191, 148, 158]],
-  [360, [205, 144, 129]],
-];
+// Project each segmentation hue into a bright pigment range. Retain the
+// differences between pastel and deeply saturated cells of the same hue.
 export function cellPigment(hex: string): RGB {
-  const [r, g, b] = [1, 3, 5].map(
-    (p) => parseInt(hex.slice(p, p + 2), 16) / 255,
+  const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lo = Math.min(...channels),
+    hi = Math.max(...channels);
+  if (hi - lo < 1) return [208, 222, 235];
+  const chroma = (hi - lo) / hi;
+  const floor = Math.round(20 + 80 * (1 - chroma));
+  const tint = channels.map(
+    (c) => floor + ((253 - floor) * (c - lo)) / (hi - lo),
   );
-  const high = Math.max(r, g, b),
-    low = Math.min(r, g, b),
-    delta = high - low;
-  const hue =
-    delta === 0
-      ? 220
-      : ((high === r
-          ? (g - b) / delta
-          : high === g
-            ? 2 + (b - r) / delta
-            : 4 + (r - g) / delta) *
-          60 +
-          360) %
-        360;
-  const index = pigments.findIndex(([degrees]) => degrees >= hue);
-  const [a, below] = pigments[Math.max(0, index - 1)],
-    [z, above] = pigments[index];
-  const f = a === z ? 0 : (hue - a) / (z - a);
-  return below.map((v, i) => Math.round(v + (above[i] - v) * f)) as RGB;
+  // Blue-violet has low photopic luminance. A small lift keeps fine traces
+  // readable among equal-size yellow and mint processes.
+  const luma = 0.213 * tint[0] + 0.715 * tint[1] + 0.072 * tint[2];
+  const lift = Math.max(0, (129 - luma) / (255 - luma));
+  return tint.map((c) => Math.round(c + (255 - c) * lift)) as RGB;
 }
 
 export function neuriteRadius(width: number) {

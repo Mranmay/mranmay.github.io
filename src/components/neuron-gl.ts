@@ -54,6 +54,14 @@ void main() {
   depths = vec2(a.z,b.z);
   worldRadius = soma ? radii : radii*view.w;
   screenRadius = worldRadius*vec2(projectionScale(a.z),projectionScale(b.z));
+  if (!soma) {
+    // A minimum screen footprint keeps the finest measured cables legible at
+    // phone scale. Their sampled physical radii still determine surface depth.
+    vec2 near = smoothstep(vec2(-165.),vec2(128.),depths);
+    vec2 core = screenRadius*(1.16+.18*near);
+    vec2 footprint = .31+.14*near;
+    screenRadius = sqrt(core*core + footprint*footprint);
+  }
   float pad = (soma ? screenRadius.x*max(1.,radii.y)*1.28 :
                       max(screenRadius.x,screenRadius.y)) + 2.0;
   local = vec2(corner.x < 0. ? -pad : span+pad, corner.y*pad);
@@ -77,7 +85,7 @@ uniform bool soma;
 uniform bool fringe;
 uniform bool membrane;
 out vec4 pixel;
-const vec3 field = vec3(.017,.014,.022);
+const vec3 field = vec3(0.);
 const vec3 key = vec3(-.49,-.62,.61);
 void main() {
   float coverage;
@@ -119,7 +127,7 @@ void main() {
     vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
     float dist = length(radial);
     float center = mix(depths.x,depths.y,along);
-    float aperture = 1.+1.5*(1.-smoothstep(-150.,72.,center));
+    float aperture = 1.+.62*(1.-smoothstep(-150.,72.,center));
     coverage = clamp((radius+.5*aperture-dist)/aperture,0.,1.)
              - clamp((.5*aperture-radius-dist)/aperture,0.,1.);
     float incline = length(tangent.xy);
@@ -140,11 +148,11 @@ void main() {
   if (coverage < .008 || ((coverage < .88) != fringe)) discard;
   gl_FragDepth = clamp(.5-surfaceZ/1800.,0.,1.);
   float diffuse = clamp(.13+.87*dot(n,key),0.,1.);
-  float lighting = .50+.62*diffuse;
-  float transmittance = clamp(exp(-.006*max(0.,116.-surfaceZ)),.165,.995);
-  vec3 lit = color*lighting;
-  vec3 distant = mix(vec3(dot(lit,vec3(.27,.61,.12))),lit,.66+.34*transmittance);
-  pixel = vec4(mix(field,distant,transmittance),fringe ? coverage : 1.);
+  float rim = pow(1.-abs(n.z),2.);
+  float lighting = clamp(.69+.29*diffuse+.06*rim,0.,1.);
+  float transmittance = .48+.52*smoothstep(-165.,128.,surfaceZ);
+  // Depth attenuates brightness while preserving each segment's false color.
+  pixel = vec4(mix(field,color*lighting,transmittance),fringe ? coverage : 1.);
 }`;
 
 function softenContour(points: Point3[]): Point3[] {
@@ -301,7 +309,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     }
     for (const branch of cell.branches) {
       const fiberPigment = branch.axon
-        ? pigment.map((component) => component * 0.78)
+        ? pigment.map((component) => component * 0.91)
         : pigment;
       const samples = endpointRadii(branch),
         points = softenContour(branch.points);
@@ -405,7 +413,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
   gl.clearDepth(1);
-  gl.clearColor(0.017, 0.014, 0.022, 1);
+  gl.clearColor(0, 0, 0, 1);
 
   function drawSurfaces() {
     gl.bindVertexArray(lines!.vao);
