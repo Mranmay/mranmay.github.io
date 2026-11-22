@@ -11,6 +11,7 @@ export interface Branch {
   axon?: boolean;
 }
 export interface Cell {
+  id: string;
   soma: Point3;
   surface?: { positions: number[]; indices: number[] };
   radius: number;

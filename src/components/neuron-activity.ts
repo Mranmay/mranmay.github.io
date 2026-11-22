@@ -1,6 +1,11 @@
 import type { Cell, Point3 } from "@/data/dendrites";
 import { initNeuronGL } from "./neuron-gl";
-import { cellPigment, endpointRadii, somaAxes } from "./neuron-style";
+import {
+  cellMaterial,
+  endpointRadii,
+  focalGlow,
+  somaAxes,
+} from "./neuron-style";
 import { createPropagation, type PropagationSegment } from "./neuron-wave";
 
 const W = 640,
@@ -27,8 +32,7 @@ function camera(yaw: number, pitch: number) {
 }
 
 function brightness(z: number) {
-  const t = Math.max(0, Math.min(1, (z + 165) / 293));
-  return 0.48 + 0.52 * t * t * (3 - 2 * t);
+  return Math.min(1, Math.max(0.21, Math.exp(-0.0058 * Math.max(0, 105 - z))));
 }
 function colorAt(rgb: number[], factor: number) {
   return (
@@ -124,7 +128,8 @@ function prepare(cell: Cell) {
       length: distances[distances.length - 1],
     });
   }
-  const pigment = cellPigment(cell.color),
+  const material = cellMaterial(cell),
+    pigment = material.pigment,
     shape = somaAxes(cell);
   const axisTip = {
     x: cell.soma.x + shape.axis.x * cell.radius,
@@ -180,6 +185,8 @@ function prepare(cell: Cell) {
     cell,
     triangles,
     surfaceRadius,
+    material,
+    glowSites: material.emission ? focalGlow(cell).sites : [],
     pigment,
     color: colorAt(pigment, 1),
     shape,
@@ -209,9 +216,20 @@ function halo(color: string) {
   sprite.width = sprite.height = 64;
   const c = sprite.getContext("2d")!;
   const grad = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, color);
-  grad.addColorStop(0.14, color);
-  grad.addColorStop(1, color.replace("rgb(", "rgba(").replace(")", ",0)"));
+  const alpha = (v: number) =>
+    color.replace("rgb(", "rgba(").replace(")", "," + v + ")");
+  for (const t of [0, 0.12, 0.25, 0.4, 0.56, 0.72, 0.86, 1]) {
+    const q = t * 3.6;
+    grad.addColorStop(
+      t,
+      alpha(
+        t === 1
+          ? 0
+          : (0.26 * Math.exp(-0.5 * q * q) + 0.05 * Math.exp(-0.16 * q * q)) /
+              0.31,
+      ),
+    );
+  }
   c.fillStyle = grad;
   c.fillRect(0, 0, 64, 64);
   return sprite;
@@ -231,8 +249,17 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const neurons = cells.map(prepare);
   const sorted = neurons.slice();
   const halos = new Map<string, HTMLCanvasElement>();
-  for (const n of neurons)
-    if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
+  let lightTheme = document.documentElement.dataset.theme === "light";
+  const featured = neurons.filter((n) => n.material.emission > 0);
+  function applyMaterials() {
+    halos.clear();
+    for (const n of neurons) {
+      n.pigment = lightTheme ? n.material.lightPigment : n.material.pigment;
+      n.color = colorAt(n.pigment, 1);
+      if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
+    }
+  }
+  applyMaterials();
   let waves: Wave[] = [];
   let stillWave: Wave | null = null;
   let stillTimer = 0;
@@ -302,7 +329,18 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       }
       buffer.globalAlpha = 1;
       for (const key of Array.from(faces.keys()).sort((a, b) => a - b)) {
-        buffer.fillStyle = colorAt(neuron.pigment, ((key % 20) * fog) / 10);
+        const substrate = lightTheme ? 255 : 0;
+        buffer.fillStyle =
+          "rgb(" +
+          neuron.pigment
+            .map((c) =>
+              Math.round(
+                substrate * (1 - fog) +
+                  fog * Math.min(255, (c * (key % 20)) / 10),
+              ),
+            )
+            .join(",") +
+          ")";
         buffer.fill(faces.get(key)!);
       }
       return;
@@ -338,6 +376,30 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       Math.PI * 2,
     );
     buffer.fill();
+  }
+  function paintLocalLight() {
+    for (const n of featured) {
+      for (const [point, sigma, power] of n.glowSites) {
+        const p = project(point),
+          dia = 7.2 * sigma * p.size;
+        const t = Math.max(0, Math.min(1, (p.z + 120) / 240));
+        const atmosphere = 0.68 + 0.32 * t * t * (3 - 2 * t);
+        buffer.globalAlpha =
+          0.31 *
+          atmosphere *
+          n.material.emission *
+          power *
+          (lightTheme ? 0.76 : 1);
+        buffer.drawImage(
+          halos.get(n.color)!,
+          p.x - dia / 2,
+          p.y - dia / 2,
+          dia,
+          dia,
+        );
+      }
+    }
+    buffer.globalAlpha = 1;
   }
   function drawFallback() {
     // Depth slices put distant crossings behind nearby surfaces. Each cell/slice
@@ -398,8 +460,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         if (d < 0.001) continue;
         const nx = -dy / d,
           ny = dx / d;
-        const r1 = Math.max(0.37 / scale, e.r1 * a.size * fiberScale * 1.12),
-          r2 = Math.max(0.37 / scale, e.r2 * b.size * fiberScale * 1.12);
+        const r1 = Math.max(0.25 / scale, e.r1 * a.size * fiberScale),
+          r2 = Math.max(0.25 / scale, e.r2 * b.size * fiberScale);
         const s = slice(n, (a.z + b.z) * 0.5);
         const body = s.body;
         body.moveTo(a.x + nx * r1, a.y + ny * r1);
@@ -417,12 +479,19 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         tip.closePath();
       }
     }
+    paintLocalLight();
     bins.forEach((bin, i) => {
       const depth = brightness(-165 + i * 30);
       for (const s of bin.values()) {
+        const emission = s.neuron.material.emission;
+        if (emission > 0.12) {
+          buffer.shadowColor = s.neuron.color;
+          buffer.shadowBlur = (lightTheme ? 1.1 : 2.8) * scale * emission;
+        }
         buffer.globalAlpha = depth;
-        buffer.fillStyle = colorAt(s.neuron.pigment, 0.97);
+        buffer.fillStyle = colorAt(s.neuron.pigment, emission ? 1.02 : 0.84);
         buffer.fill(s.body);
+        buffer.shadowBlur = 0;
         buffer.globalAlpha = depth * 0.77;
         buffer.fillStyle = colorAt(s.neuron.pigment, 1.25);
         buffer.fill(s.facet);
@@ -432,8 +501,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     buffer.globalAlpha = 1;
   }
   function geometry(force = false) {
-    const a = yaw + Math.sin(autoTime * 0.125) * 0.28,
-      b = pitch + Math.sin(autoTime * 0.083) * 0.12;
+    const a = yaw + Math.sin(autoTime * 0.11) * 0.21,
+      b = pitch + Math.sin(autoTime * 0.072) * 0.1;
     // Reuse the projected layer when slow camera drift moves it by less than a pixel.
     if (
       !force &&
@@ -446,12 +515,12 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     project = camera(a, b);
     epoch++;
     if (gpu) {
-      gpu.draw(a, b, scale, offsetX, offsetY, fiberScale);
+      gpu.draw(a, b, scale, offsetX, offsetY, fiberScale, lightTheme);
       return;
     }
     buffer.setTransform(1, 0, 0, 1, 0, 0);
     buffer.globalAlpha = 1;
-    buffer.fillStyle = "#000";
+    buffer.fillStyle = lightTheme ? "#fff" : "#000";
     buffer.fillRect(0, 0, background.width, background.height);
     buffer.setTransform(scale, 0, 0, scale, offsetX, offsetY);
     drawFallback();
@@ -525,7 +594,12 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         ctx.stroke();
       }
       stroke(14, 2.55, p.neuron.color, 0.47);
-      stroke(7.5, 1.15, "#f9e5bc", 0.95);
+      stroke(
+        7.5,
+        1.15,
+        lightTheme ? "#885a33" : "#f9e5bc",
+        p.neuron.material.emission ? 0.92 : 0.48,
+      );
       ctx.globalAlpha = 1;
     }
     waves = waves.filter((w) => (clock - w.born) * w.speed < w.extent + 37);
@@ -580,8 +654,20 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       ctx.stroke();
     }
     band(radius - trail, radius, core + 5, 0.25 * attenuation, ink);
-    band(radius - 17, radius, core + 1.1, 0.97 * attenuation, "#ffe4a5");
-    band(radius - 8.5, radius, core * 0.82, attenuation, "#fffbea");
+    band(
+      radius - 17,
+      radius,
+      core + 1.1,
+      0.97 * attenuation,
+      lightTheme ? "#aa6338" : "#ffe4a5",
+    );
+    band(
+      radius - 8.5,
+      radius,
+      core * 0.82,
+      attenuation,
+      lightTheme ? "#663751" : "#fffbea",
+    );
     if (radius < 38 || stillWave === w) {
       const intensity = stillWave === w ? 1 : Math.max(0, 1 - radius / 38);
       const size = 13 + radius * 0.08;
@@ -598,7 +684,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         );
       }
       ctx.globalAlpha = intensity;
-      ctx.fillStyle = "#fff9d6";
+      ctx.fillStyle = lightTheme ? "#693b48" : "#fff9d6";
       ctx.beginPath();
       ctx.arc(x, y, core * 0.61, 0, Math.PI * 2);
       ctx.fill();
@@ -619,16 +705,11 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     const auto = !paused && !motion.matches;
     if (auto && !dragging) autoTime += dt;
     if (auto && clock >= ambient) {
-      const neuron = neurons[(cycle * 19 + 23) % neurons.length];
-      pulse(neuron, cycle, clock - (cycle === 0 ? 0.2 : 0));
-      if (cycle % 7 === 2)
-        pulse(
-          neurons[(cycle * 17 + 5) % neurons.length],
-          cycle + 1,
-          clock + 0.12,
-        );
+      const pool = featured.length && cycle % 6 !== 5 ? featured : neurons;
+      const neuron = pool[(cycle * 19 + 2) % pool.length];
+      pulse(neuron, cycle, clock - (cycle === 0 ? 0.35 : 0));
       cycle++;
-      ambient = clock + 0.47 + 0.36 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
+      ambient = clock + 0.81 + 0.44 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
     }
     paint();
     if (auto) frame = requestAnimationFrame(tick);
@@ -679,9 +760,14 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         background.width = w;
         background.height = h;
       }
-      scale = Math.max(w / W, h / H);
-      offsetX = (w - scale * W) / 2;
-      offsetY = (h - scale * H) / 2;
+      const cover = Math.max(w / W, h / H);
+      const position =
+        parseFloat(
+          getComputedStyle(figure).getPropertyValue("--poster-position"),
+        ) / 100 || 0.5;
+      scale = cover * 1.32;
+      offsetX = w / 2 - 318 * scale + (position - 0.5) * (w - cover * W);
+      offsetY = h / 2 - 199 * scale;
       geometry(true);
       paint();
     }
@@ -835,19 +921,20 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   });
   stimulus.addEventListener("lostpointercapture", release);
   stimulus.addEventListener("click", (e) => {
+    const r = canvas.getBoundingClientRect();
     if (e.detail === 0) {
       const index = cycle++;
+      const top = Math.max(0, (stimulus.getBoundingClientRect().top - r.top) / r.height);
+      const y = top + (1 - top) * (0.4 + 0.16 * Math.cos(index * 1.71));
       return choose({
         x:
           (canvas.width * (0.6 + 0.19 * Math.sin(index * 2.27)) - offsetX) /
           scale,
-        y:
-          (canvas.height * (0.4 + 0.16 * Math.cos(index * 1.71)) - offsetY) /
-          scale,
+        y: (canvas.height * y - offsetY) / scale,
       });
     }
     if (moved) return;
-    const r = canvas.getBoundingClientRect();
+    if (e.clientY < r.top || e.clientY > r.bottom) return;
     choose({
       x: (((e.clientX - r.left) * canvas.width) / r.width - offsetX) / scale,
       y: (((e.clientY - r.top) * canvas.height) / r.height - offsetY) / scale,
@@ -856,6 +943,17 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   playback.addEventListener("click", () => {
     paused = !paused;
     resetTiming();
+  });
+  new MutationObserver(() => {
+    const next = document.documentElement.dataset.theme === "light";
+    if (next === lightTheme) return;
+    lightTheme = next;
+    applyMaterials();
+    geometry(true);
+    paint();
+  }).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
   });
   motion.addEventListener("change", resetTiming);
   document.addEventListener("visibilitychange", resetTiming);

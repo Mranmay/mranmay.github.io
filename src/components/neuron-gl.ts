@@ -1,6 +1,11 @@
 import type { Cell, Point3 } from "../data/dendrites";
 
-import { cellPigment, endpointRadii, somaAxes } from "./neuron-style";
+import {
+  cellMaterial,
+  endpointRadii,
+  focalGlow,
+  somaAxes,
+} from "./neuron-style";
 
 // Each neurite segment is an instanced tapered capsule. For somas, the second
 // point defines the anatomical long axis, and the second radius is its elongation.
@@ -8,7 +13,7 @@ const vertexSource = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 startPoint;
 layout(location=1) in vec3 endPoint;
-layout(location=2) in vec3 pigment;
+layout(location=2) in vec2 packedPigments;
 layout(location=3) in vec2 radii;
 layout(location=4) in vec2 corner;
 uniform vec4 rotation;
@@ -16,6 +21,8 @@ uniform vec2 viewport;
 uniform vec4 view;
 uniform bool soma;
 uniform bool membrane;
+uniform bool glowPass;
+uniform bool lightTheme;
 out vec3 surfaceNormal;
 out float surfaceDepth;
 out vec2 local;
@@ -24,6 +31,7 @@ flat out vec2 worldRadius;
 flat out vec2 screenRadius;
 flat out vec3 tangent;
 flat out vec3 color;
+flat out float focal;
 flat out float span;
 vec3 rotatePoint(vec3 p) {
   float depth = rotation.x*p.z - rotation.y*p.x;
@@ -34,7 +42,9 @@ vec3 rotatePoint(vec3 p) {
 float projectionScale(float z) { return .98*view.x/(1.-z/800.); }
 void main() {
   vec3 a = rotatePoint(startPoint);
-  color = pigment;
+  uint bits = uint(lightTheme ? packedPigments.y : packedPigments.x);
+  color = vec3(float((bits>>14u)&127u),float((bits>>7u)&127u),float(bits&127u))/127.;
+  focal = float(bits>>21u)/7.;
   if (membrane) {
     vec2 pixel = a.xy*projectionScale(a.z) + vec2(320.,202.5)*view.x + view.yz;
     vec2 normalized = pixel/viewport*vec2(2.,-2.) + vec2(-1.,1.);
@@ -54,16 +64,12 @@ void main() {
   depths = vec2(a.z,b.z);
   worldRadius = soma ? radii : radii*view.w;
   screenRadius = worldRadius*vec2(projectionScale(a.z),projectionScale(b.z));
-  if (!soma) {
-    // A minimum screen footprint keeps the finest measured cables legible at
-    // phone scale. Their sampled physical radii still determine surface depth.
-    vec2 near = smoothstep(vec2(-165.),vec2(128.),depths);
-    vec2 core = screenRadius*(1.16+.18*near);
-    vec2 footprint = .31+.14*near;
-    screenRadius = sqrt(core*core + footprint*footprint);
-  }
   float pad = (soma ? screenRadius.x*max(1.,radii.y)*1.28 :
-                      max(screenRadius.x,screenRadius.y)) + 2.0;
+                      max(screenRadius.x,screenRadius.y)) + 2.;
+  if (glowPass) {
+    if (soma) pad = 3.6*screenRadius.x+1.;
+    else pad += 12.*projectionScale(max(depths.x,depths.y));
+  }
   local = vec2(corner.x < 0. ? -pad : span+pad, corner.y*pad);
   vec2 pixel = a.xy*projectionScale(a.z) + vec2(320.,202.5)*view.x + view.yz
                + direction*local.x + across*local.y;
@@ -80,10 +86,14 @@ flat in vec2 worldRadius;
 flat in vec2 screenRadius;
 flat in vec3 tangent;
 flat in vec3 color;
+flat in float focal;
 flat in float span;
 uniform bool soma;
 uniform bool fringe;
+uniform vec4 view;
 uniform bool membrane;
+uniform bool glowPass;
+uniform bool lightTheme;
 out vec4 pixel;
 const vec3 field = vec3(0.);
 const vec3 key = vec3(-.49,-.62,.61);
@@ -91,6 +101,32 @@ void main() {
   float coverage;
   float surfaceZ;
   vec3 n;
+  if (glowPass) {
+    float along = clamp(local.x/max(.0001,span),0.,1.);
+    float z = mix(depths.x,depths.y,along);
+    float scale = view.x*.98/(1.-z/800.);
+    vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
+    float d = length(radial)/scale;
+    float r = mix(worldRadius.x,worldRadius.y,along);
+    float outside = max(0.,d-r);
+    // Two spatial scales keep a thin, luminous cable inside a soft spill of
+    // light. Only measured neurites in a focal region reach this draw pass.
+    float narrow = exp(-1.26*outside*outside);
+    float broad = exp(-.054*outside*outside);
+    float atmosphere = .68+.32*smoothstep(-120.,120.,z);
+    float strength;
+    if (soma) {
+      float q = d/max(.001,r);
+      strength = atmosphere*(.26*exp(-.5*q*q)+.050*exp(-.16*q*q));
+    } else {
+      strength = atmosphere*(.90*narrow+.23*broad);
+    }
+    vec3 spill = lightTheme ? (vec3(1.)-color)*strength*.76 : color*strength;
+    if (max(max(spill.r,spill.g),spill.b) < .004) discard;
+    gl_FragDepth = clamp(.5-(soma ? z : z+r)/1800.,0.,1.);
+    pixel = vec4(lightTheme ? vec3(1.)-spill : spill,1.);
+    return;
+  }
   if (membrane) {
     coverage = 1.;
     surfaceZ = surfaceDepth;
@@ -127,7 +163,7 @@ void main() {
     vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
     float dist = length(radial);
     float center = mix(depths.x,depths.y,along);
-    float aperture = 1.+.62*(1.-smoothstep(-150.,72.,center));
+    float aperture = 1.+1.30*(1.-smoothstep(-150.,72.,center));
     coverage = clamp((radius+.5*aperture-dist)/aperture,0.,1.)
              - clamp((.5*aperture-radius-dist)/aperture,0.,1.);
     float incline = length(tangent.xy);
@@ -148,11 +184,24 @@ void main() {
   if (coverage < .008 || ((coverage < .88) != fringe)) discard;
   gl_FragDepth = clamp(.5-surfaceZ/1800.,0.,1.);
   float diffuse = clamp(.13+.87*dot(n,key),0.,1.);
-  float rim = pow(1.-abs(n.z),2.);
-  float lighting = clamp(.69+.29*diffuse+.06*rim,0.,1.);
-  float transmittance = .48+.52*smoothstep(-165.,128.,surfaceZ);
-  // Depth attenuates brightness while preserving each segment's false color.
-  pixel = vec4(mix(field,color*lighting,transmittance),fringe ? coverage : 1.);
+  float lighting = .53+.55*diffuse;
+  float transmittance = clamp(exp(-.0049*max(0.,110.-surfaceZ)),.25,.995);
+  vec3 lit = color*lighting;
+  vec3 matte = field;
+  if (lightTheme) {
+    matte = vec3(1.);
+    lit = mix(color*.79,color+(1.-color)*.23,diffuse);
+    transmittance = .33+.64*smoothstep(-130.,150.,surfaceZ);
+  }
+  // The material's key light affects actual membrane and thicker proximal
+  // cables. The fine background arbors retain their own measured caliber.
+  float wide = (soma || membrane) ? 1. : smoothstep(.32,.82,max(worldRadius.x,worldRadius.y));
+  float incident = max(0.,.46*n.z+.54*dot(n,key));
+  float emphasis = focal*wide*incident;
+  vec3 highlight = mix(color,lightTheme ? vec3(1.) : vec3(1.,.95,.85),.30);
+  lit = mix(lit,highlight,emphasis*(lightTheme ? .18 : .64));
+  transmittance = mix(transmittance,1.,emphasis*.44);
+  pixel = vec4(mix(matte,lit,transmittance),fringe ? coverage : 1.);
 }`;
 
 function softenContour(points: Point3[]): Point3[] {
@@ -172,19 +221,47 @@ function softenContour(points: Point3[]): Point3[] {
   });
 }
 
+type Pigments = readonly [number, number];
+
+// Each palette entry is packed into a 24-bit integer: seven bits per
+// color channel and three bits of focal material strength. Both palettes
+// share one copy of the geometry.
+function packPigments(
+  dark: number[],
+  light: number[],
+  amount = 1,
+  focal = 0,
+): Pigments {
+  function pack(rgb: number[], matte: number) {
+    const channel = (i: number) =>
+      Math.max(
+        0,
+        Math.min(
+          127,
+          Math.round(((matte + (rgb[i] - matte) * amount) * 127) / 255),
+        ),
+      );
+    const emphasis = focal >= 0.4 ? Math.round(Math.min(1, focal) * 7) : 0;
+    return (
+      (emphasis << 21) | (channel(0) << 14) | (channel(1) << 7) | channel(2)
+    );
+  }
+  return [pack(dark, 0), pack(light, 255)];
+}
+
 type Surface = NonNullable<Cell["surface"]>;
 
 // Sum the oriented face-area vectors, then normalize once per shared vertex.
 function appendSurface(
   cell: Cell,
   surface: Surface,
-  pigment: number[],
+  pigment: Pigments,
   packed: number[],
   triangles: number[],
 ) {
   const { positions, indices } = surface;
   const normals = new Float32Array(positions.length);
-  const base = packed.length / 9;
+  const base = packed.length / 8;
   for (let i = 0; i < indices.length; i += 3) {
     const a = indices[i] * 3,
       b = indices[i + 1] * 3,
@@ -266,13 +343,15 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   const sorted = cells.slice().sort((a, b) => a.soma.z - b.soma.z);
   const fibers: number[] = [];
   const somas: number[] = [];
+  const luminousFibers: number[] = [];
+  const glowSites: number[] = [];
   const meshVertices: number[] = [],
     triangles: number[] = [];
   function append(
     out: number[],
     a: Point3,
     b: Point3,
-    pigment: number[],
+    pigment: Pigments,
     radiusA: number,
     radiusB: number,
   ) {
@@ -285,13 +364,37 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       b.z,
       pigment[0],
       pigment[1],
-      pigment[2],
       radiusA,
       radiusB,
     );
   }
   for (const cell of sorted) {
-    const pigment = cellPigment(cell.color).map((component) => component / 255);
+    const material = cellMaterial(cell);
+    const pigment = packPigments(
+      material.pigment,
+      material.lightPigment,
+      1,
+      material.emission,
+    );
+    const axonPigment = packPigments(
+      material.pigment,
+      material.lightPigment,
+      0.81,
+    );
+    // Localize the strongest emission to the soma neighborhood and a second
+    // point along a contiguous traced path. Nothing is drawn in empty space.
+    const glowRegion = material.emission > 0 ? focalGlow(cell) : null;
+    const distal = glowRegion?.distal ?? cell.soma;
+    if (glowRegion) {
+      for (const [point, radius, intensity] of glowRegion.sites) {
+        const glowColor = packPigments(
+          material.pigment,
+          material.lightPigment,
+          material.emission * intensity,
+        );
+        append(glowSites, point, point, glowColor, radius, 1);
+      }
+    }
     const surface = cell.surface;
     if (surface?.indices.length) {
       appendSurface(cell, surface, pigment, meshVertices, triangles);
@@ -308,9 +411,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       );
     }
     for (const branch of cell.branches) {
-      const fiberPigment = branch.axon
-        ? pigment.map((component) => component * 0.91)
-        : pigment;
+      const fiberPigment = branch.axon ? axonPigment : pigment;
       const samples = endpointRadii(branch),
         points = softenContour(branch.points);
       for (let i = 1; i < points.length; i++) {
@@ -318,6 +419,33 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
           b = points[i];
         if (a.x === b.x && a.y === b.y && a.z === b.z) continue;
         append(fibers, a, b, fiberPigment, samples[i - 1], samples[i]);
+        if (material.emission <= 0 || branch.axon) continue;
+        const x = (a.x + b.x) * 0.5,
+          y = (a.y + b.y) * 0.5,
+          z = (a.z + b.z) * 0.5;
+        const ds =
+          (x - cell.soma.x) ** 2 +
+          (y - cell.soma.y) ** 2 +
+          (z - cell.soma.z) ** 2;
+        const dd =
+          (x - distal.x) ** 2 + (y - distal.y) ** 2 + (z - distal.z) ** 2;
+        const concentration = Math.max(
+          0.86 * Math.exp(-ds / 2600),
+          Math.exp(-dd / 1350),
+        );
+        const weight = Math.min(
+          1,
+          0.52 + 0.6 * Math.max(samples[i - 1], samples[i]),
+        );
+        const emission = material.emission * concentration * weight;
+        if (emission > 0.045) {
+          const lit = packPigments(
+            material.pigment,
+            material.lightPigment,
+            emission,
+          );
+          append(luminousFibers, a, b, lit, samples[i - 1], samples[i]);
+        }
       }
     }
   }
@@ -348,11 +476,11 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       gl.enableVertexAttribArray(i);
       gl.vertexAttribPointer(
         i,
-        i === 3 ? 2 : 3,
+        i >= 2 ? 2 : 3,
         gl.FLOAT,
         false,
-        instanced ? 44 : 36,
-        i * 12,
+        instanced ? 40 : 32,
+        i === 3 ? 32 : i * 12,
       );
       gl.vertexAttribDivisor(i, instanced ? 1 : 0);
     }
@@ -379,10 +507,14 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     gl.bindVertexArray(null);
   }
   const indexCount = triangles.length;
+  const lightLayer = luminousFibers.length ? upload(luminousFibers) : null;
+  const lightCount = luminousFibers.length / 10;
+  const clouds = glowSites.length ? upload(glowSites) : null;
+  const cloudCount = glowSites.length / 10;
   function dispose() {
     gl.deleteBuffer(corners);
     gl.deleteBuffer(elementBuffer);
-    for (const layer of [lines, points, mesh]) {
+    for (const layer of [lines, points, mesh, lightLayer, clouds]) {
       if (layer) {
         gl.deleteVertexArray(layer.vao);
         gl.deleteBuffer(layer.buffer);
@@ -394,26 +526,29 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     !lines ||
     !points ||
     (indexCount && !elementBuffer) ||
+    (lightCount && !lightLayer) ||
+    (cloudCount && !clouds) ||
     gl.getError() !== gl.NO_ERROR
   ) {
     dispose();
     return null;
   }
-  const fiberCount = fibers.length / 11,
-    somaCount = somas.length / 11;
+  const fiberCount = fibers.length / 10,
+    somaCount = somas.length / 10;
   const view = gl.getUniformLocation(program, "view");
   const viewport = gl.getUniformLocation(program, "viewport");
   const rotation = gl.getUniformLocation(program, "rotation");
   const soma = gl.getUniformLocation(program, "soma");
   const fringe = gl.getUniformLocation(program, "fringe");
   const membrane = gl.getUniformLocation(program, "membrane");
+  const glow = gl.getUniformLocation(program, "glowPass");
+  const lightTheme = gl.getUniformLocation(program, "lightTheme");
   gl.useProgram(program);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
   gl.clearDepth(1);
-  gl.clearColor(0, 0, 0, 1);
 
   function drawSurfaces() {
     gl.bindVertexArray(lines!.vao);
@@ -435,7 +570,11 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       offsetX: number,
       offsetY: number,
       fiberScale: number,
+      light = false,
     ) {
+      const matte = light ? 1 : 0;
+      gl.uniform1i(lightTheme, matte);
+      gl.clearColor(matte, matte, matte, 1);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.depthMask(true);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -459,6 +598,24 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       gl.depthMask(false);
       gl.uniform1i(fringe, 1);
       drawSurfaces();
+      if (clouds || lightLayer) {
+        // Min/max blending prevents successive short trace samples from building
+        // artificial beads of light at the joins. Occluders still own depth.
+        gl.blendEquation(light ? gl.MIN : gl.MAX);
+        gl.uniform1i(glow, 1);
+        if (clouds) {
+          gl.uniform1i(soma, 1);
+          gl.bindVertexArray(clouds.vao);
+          gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, cloudCount);
+        }
+        if (lightLayer) {
+          gl.uniform1i(soma, 0);
+          gl.bindVertexArray(lightLayer.vao);
+          gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, lightCount);
+        }
+        gl.uniform1i(glow, 0);
+        gl.blendEquation(gl.FUNC_ADD);
+      }
     },
   };
 }

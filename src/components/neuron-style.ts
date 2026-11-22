@@ -1,23 +1,78 @@
 import type { Branch, Cell, Point3 } from "../data/dendrites";
 
 type RGB = [number, number, number];
-// Project each segmentation hue into a bright pigment range. Retain the
-// differences between pastel and deeply saturated cells of the same hue.
-export function cellPigment(hex: string): RGB {
-  const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const lo = Math.min(...channels),
-    hi = Math.max(...channels);
-  if (hi - lo < 1) return [208, 222, 235];
-  const chroma = (hi - lo) / hi;
-  const floor = Math.round(20 + 80 * (1 - chroma));
-  const tint = channels.map(
-    (c) => floor + ((253 - floor) * (c - lo)) / (hi - lo),
+type Material = { pigment: RGB; lightPigment: RGB; emission: number };
+
+// Segment IDs refer to individual reconstructed cells. The warm focal arbor and
+// its neighbors keep the same identities and colors when visitors rotate the tissue.
+const focal: Record<string, Material> = {
+  "864691134918921738": {
+    pigment: [236, 186, 126],
+    lightPigment: [143, 96, 48],
+    emission: 0.94,
+  },
+  "864691134886600954": {
+    pigment: [182, 130, 144],
+    lightPigment: [134, 85, 108],
+    emission: 0.64,
+  },
+  "864691134939989091": {
+    pigment: [137, 149, 182],
+    lightPigment: [85, 104, 139],
+    emission: 0.42,
+  },
+  "864691134989865338": {
+    pigment: [117, 161, 156],
+    lightPigment: [72, 117, 117],
+    emission: 0.34,
+  },
+  "864691134941875299": {
+    pigment: [151, 132, 156],
+    lightPigment: [116, 102, 130],
+    emission: 0.28,
+  },
+  "864691134948513276": {
+    pigment: [131, 139, 155],
+    lightPigment: [101, 109, 126],
+    emission: 0.18,
+  },
+  "864691134964430623": {
+    pigment: [117, 133, 147],
+    lightPigment: [104, 122, 134],
+    emission: 0.13,
+  },
+};
+export function cellMaterial(cell: Cell): Material {
+  if (focal[cell.id]) return focal[cell.id];
+  const [r, g, b] = [1, 3, 5].map(
+    (i) => parseInt(cell.color.slice(i, i + 2), 16) / 255,
   );
-  // Blue-violet has low photopic luminance. A small lift keeps fine traces
-  // readable among equal-size yellow and mint processes.
-  const luma = 0.213 * tint[0] + 0.715 * tint[1] + 0.072 * tint[2];
-  const lift = Math.max(0, (129 - luma) / (255 - luma));
-  return tint.map((c) => Math.round(c + (255 - c) * lift)) as RGB;
+  const shade = cell.soma.x < -60 ? 0.68 : 0.94;
+  const pigment: RGB = [
+    (47 + 19 * r) * shade,
+    (45 + 13 * g) * shade,
+    (51 + 19 * b) * shade,
+  ];
+  return {
+    pigment,
+    lightPigment: [175 + 12 * r, 177 + 12 * g, 182 + 12 * b],
+    emission: 0,
+  };
+}
+
+export function focalGlow(cell: Cell) {
+  const guide = cell.signals.reduce<Point3[]>(
+    (best, route) => (route.length > best.length ? route : best),
+    [],
+  );
+  const distal = guide[Math.floor(guide.length * 0.66)] ?? cell.soma;
+  const sites: [Point3, number, number][] = [
+    [cell.soma, 10, 0.96],
+    [distal, 9, 0.78],
+  ];
+  if (guide.length > 2)
+    sites.push([guide[Math.floor(guide.length * 0.33)], 7, 0.58]);
+  return { distal, sites };
 }
 
 export function neuriteRadius(width: number) {

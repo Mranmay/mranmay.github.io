@@ -36,7 +36,8 @@
   --body: "DM Sans", system-ui, sans-serif;
   --display: var(--body);
   --mono: var(--body);
-  --bg: #000;
+  --surface-rgb: 0 0 0;
+  --bg: rgb(var(--surface-rgb));
   --panel: #151518;
   --ink: #f5f4f2;
   --muted: #b5b4bc;
@@ -44,11 +45,11 @@
   --accent: #c2b9ff;
   --button-bg: #eeeafc;
   --button-ink: #16121f;
-  --hero-name: #c6beee;
+  --hero-name: #e6ddff;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #faf9fc;
+  --surface-rgb: 255 255 255;
   --panel: #efedf3;
   --ink: #1c1b20;
   --muted: #5a5663;
@@ -140,6 +141,9 @@ h3,
 body > header {
   border-bottom: 1px solid var(--rule);
 }
+body:has(.hero) > header {
+  border-bottom: 0;
+}
 .masthead,
 .masthead nav,
 .wordmark,
@@ -210,9 +214,8 @@ body > header {
 .hero {
   position: relative;
   isolation: isolate;
-  background: #000;
-  color: #fcfaf8;
-  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink);
   overflow: hidden;
 }
 .hero > figure {
@@ -220,13 +223,27 @@ body > header {
   inset: 0;
   z-index: 0;
 }
-.hero::after {
+/* Only the artwork fades at the perimeter. Keep its controls and the bio crisp. */
+.hero > figure::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: radial-gradient(ellipse 48% 72% at 23% 53%, rgb(0 0 0 / 82%) 0%, rgb(0 0 0 / 78%) 36%, rgb(0 0 0 / 48%) 61%, rgb(0 0 0 / 12%) 82%, transparent 100%);
+  background:
+    linear-gradient(to bottom, var(--bg), rgb(var(--surface-rgb) / .52) 3.5%, transparent 12%, transparent 70%, rgb(var(--surface-rgb) / .16) 79%, rgb(var(--surface-rgb) / .69) 91%, var(--bg) 100%),
+    linear-gradient(to right, var(--bg), transparent 5%, transparent 95%, var(--bg));
+}
+.hero > figure::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 48% 72% at 23% 53%, rgb(var(--surface-rgb) / .88), rgb(var(--surface-rgb) / .8) 36%, rgb(var(--surface-rgb) / .52) 61%, rgb(var(--surface-rgb) / .12) 82%, transparent);
+}
+.hero + .home-section {
+  padding-top: clamp(1.3rem, 2.8vw, 2.6rem);
 }
 .hero-inner {
   position: relative;
@@ -246,38 +263,33 @@ body > header {
   line-height: 0.96;
   letter-spacing: -0.045em;
   margin-bottom: clamp(1.1rem, 2.4vw, 2rem);
-  text-shadow: 0 2px 24px #0009;
+  text-shadow: 0 2px 20px rgb(var(--surface-rgb) / .66);
 }
 .hero h1 em {
   font-weight: 400;
-  color: #e6ddff;
+  color: var(--hero-name);
 }
 .hero-copy {
   max-width: min(37rem, 51%);
-  color: #f1eef1;
+  color: var(--ink);
   font-size: 1.0625rem;
   font-weight: 400;
   line-height: 1.58;
   text-wrap: pretty;
-  text-shadow: 0 1px 4px #000;
+  text-shadow: 0 1px 4px var(--bg);
 }
 .hero-copy p + p { margin-top: .85rem; }
 .hero-copy a {
   color: inherit;
   font: inherit;
   text-decoration: underline;
-  text-decoration-color: #b4a8d8;
+  text-decoration-color: var(--accent);
   text-underline-offset: .2em;
   text-decoration-thickness: 1px;
 }
-.hero-copy a:hover { text-decoration-color: #fff; }
+.hero-copy a:hover { text-decoration-color: currentColor; }
 .meta {
   font: 500 0.81rem/1.5 var(--mono);
-}
-.hero-links .button.solid {
-  background: #eeeafc;
-  border-color: #eeeafc;
-  color: #16121f;
 }
 .hero-links,
 .page-links {
@@ -650,9 +662,9 @@ body > footer {
   .cv-link {
     padding: 0.1rem 0.65rem;
   }
-  .hero::after {
+  .hero > figure::after {
     background:
-      linear-gradient(180deg, rgb(0 0 0 / 42%) 0, rgb(0 0 0 / 20%) 4rem, transparent 6.5rem, transparent 11rem, rgb(0 0 0 / 58%) 17rem, rgb(0 0 0 / 72%) 23rem, rgb(0 0 0 / 61%) 100%);
+      linear-gradient(180deg, rgb(var(--surface-rgb) / .58), rgb(var(--surface-rgb) / .2) 4rem, transparent 6.5rem, transparent 11rem, rgb(var(--surface-rgb) / .68) 17rem, rgb(var(--surface-rgb) / .79) 23rem, rgb(var(--surface-rgb) / .66));
   }
   .hero-inner {
     min-height: auto;
