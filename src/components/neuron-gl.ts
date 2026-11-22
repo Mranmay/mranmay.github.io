@@ -64,6 +64,11 @@ void main() {
   depths = vec2(a.z,b.z);
   worldRadius = soma ? radii : radii*view.w;
   screenRadius = worldRadius*vec2(projectionScale(a.z),projectionScale(b.z));
+  if(!soma) {
+    // Keep the smallest axonal filaments fine; make the contour of thicker
+    // measured structures visible at the scale of the full volume.
+    screenRadius *= 1.04 + .34*smoothstep(vec2(.23),vec2(.64),worldRadius);
+  }
   float pad = (soma ? screenRadius.x*max(1.,radii.y)*1.28 :
                       max(screenRadius.x,screenRadius.y)) + 2.;
   if (glowPass) {
@@ -117,9 +122,9 @@ void main() {
     float strength;
     if (soma) {
       float q = d/max(.001,r);
-      strength = atmosphere*(.26*exp(-.5*q*q)+.050*exp(-.16*q*q));
+      strength = atmosphere*(.146*exp(-.5*q*q)+.032*exp(-.16*q*q));
     } else {
-      strength = atmosphere*(.90*narrow+.23*broad);
+      strength = atmosphere*(.80*narrow+.13*broad);
     }
     vec3 spill = lightTheme ? (vec3(1.)-color)*strength*.76 : color*strength;
     if (max(max(spill.r,spill.g),spill.b) < .004) discard;
@@ -163,7 +168,8 @@ void main() {
     vec2 radial = vec2(local.x-clamp(local.x,0.,span),local.y);
     float dist = length(radial);
     float center = mix(depths.x,depths.y,along);
-    float aperture = 1.+1.30*(1.-smoothstep(-150.,72.,center));
+    float defocus = 1.-smoothstep(-135.,80.,center);
+    float aperture = 1.+(focal < .01 ? 2.40 : 1.38)*defocus;
     coverage = clamp((radius+.5*aperture-dist)/aperture,0.,1.)
              - clamp((.5*aperture-radius-dist)/aperture,0.,1.);
     float incline = length(tangent.xy);
@@ -197,12 +203,164 @@ void main() {
   // cables. The fine background arbors retain their own measured caliber.
   float wide = (soma || membrane) ? 1. : smoothstep(.32,.82,max(worldRadius.x,worldRadius.y));
   float incident = max(0.,.46*n.z+.54*dot(n,key));
-  float emphasis = focal*wide*incident;
+  float emphasis = focal*wide*(.43+.57*incident);
   vec3 highlight = mix(color,lightTheme ? vec3(1.) : vec3(1.,.95,.85),.30);
-  lit = mix(lit,highlight,emphasis*(lightTheme ? .18 : .64));
-  transmittance = mix(transmittance,1.,emphasis*.44);
+  lit = mix(lit,highlight,emphasis*(lightTheme ? .26 : .79));
+  transmittance = mix(transmittance,1.,emphasis*.68);
+  if(membrane) {
+    // Normal variation comes from the measured triangles. Accentuate surface
+    // folds and light the exposed shoulders of a process where it tapers.
+    float fold = clamp((1.-length(surfaceNormal))*.86,0.,.19);
+    float shoulder = (1.-abs(n.z))*(.47+.53*diffuse);
+    lit = mix(lit*(1.-fold),color+(1.-color)*.16,.19*shoulder);
+  }
+  if (!soma && !membrane && focal < .01) {
+    transmittance *= .60+.40*smoothstep(-115.,130.,surfaceZ);
+  }
   pixel = vec4(mix(matte,lit,transmittance),fringe ? coverage : 1.);
 }`;
+
+// Spread light from the rendered tissue itself. Both kernels track the actual
+// projected membranes as the visitor rotates the reconstruction.
+const opticalVertex = `#version 300 es
+precision highp float;
+layout(location=4) in vec2 corner;
+out vec2 uv;
+void main() { uv=corner*.5+.5; gl_Position=vec4(corner,0.,1.); }
+`;
+
+const opticalFragment = `#version 300 es
+precision highp float;
+uniform sampler2D tissue;
+uniform bool lightTheme;
+uniform float pixelScale;
+in vec2 uv;
+out vec4 pixel;
+vec3 exposure(vec2 at,float lod) {
+  vec3 c=textureLod(tissue,at,lod).rgb;
+  return lightTheme ? vec3(1.)-c : c;
+}
+vec3 neighborhood(vec2 texel,float radius,float lod) {
+  vec2 d=texel*radius;
+  return .40*exposure(uv,lod) + .15*(
+    exposure(uv+vec2(d.x,0.),lod)+exposure(uv-vec2(d.x,0.),lod)
+   +exposure(uv+vec2(0.,d.y),lod)+exposure(uv-vec2(0.,d.y),lod));
+}
+void main(){
+  vec2 texel=1./vec2(textureSize(tissue,0));
+  float deviceScale=clamp(pixelScale,.8,2.7);
+  float levels=log2(deviceScale);
+  vec3 crisp=exposure(uv,0.);
+  vec3 skin=neighborhood(texel,.70*deviceScale,.55+levels);
+  vec3 near=neighborhood(texel,1.25*deviceScale,1.25+levels);
+  vec3 wide=neighborhood(texel,5.8*deviceScale,2.75+levels);
+  vec3 tissueColor=mix(crisp,skin,lightTheme ? .26 : .46);
+  float strength=lightTheme ? .45 : 1.;
+  // Colored scattering is limited to regions containing labeled material.
+  float localChroma = max(max(near.r,near.g),near.b)-min(min(near.r,near.g),near.b);
+  vec3 scatter=strength*(near*.17+wide*.165)*(1.+.55*smoothstep(.04,.32,localChroma));
+  vec3 radiance=1.-(1.-tissueColor)*(1.-scatter);
+  radiance=mix(radiance,vec3(dot(radiance,vec3(.2126,.7152,.0722))),.052);
+  pixel=vec4(lightTheme ? vec3(1.)-radiance : radiance,1.);
+}`;
+
+function tissueOptics(
+  gl: WebGL2RenderingContext,
+  corners: WebGLBuffer,
+  program: WebGLProgram,
+) {
+  const framebuffer = gl.createFramebuffer(),
+    depth = gl.createRenderbuffer();
+  const texture = gl.createTexture(),
+    quad = gl.createVertexArray();
+  function dispose() {
+    gl.deleteFramebuffer(framebuffer);
+    gl.deleteRenderbuffer(depth);
+    gl.deleteTexture(texture);
+    gl.deleteVertexArray(quad);
+    gl.deleteProgram(program);
+  }
+  if (!texture || !depth || !framebuffer || !quad) {
+    dispose();
+    return null;
+  }
+  gl.bindVertexArray(quad);
+  gl.bindBuffer(gl.ARRAY_BUFFER, corners);
+  gl.enableVertexAttribArray(4);
+  gl.vertexAttribPointer(4, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+  const themed = gl.getUniformLocation(program, "lightTheme");
+  const pixelScale = gl.getUniformLocation(program, "pixelScale");
+  gl.useProgram(program);
+  gl.uniform1i(gl.getUniformLocation(program, "tissue"), 0);
+  let width = 0,
+    height = 0,
+    ready = false;
+  return {
+    dispose,
+    begin(w: number, h: number) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      if (w !== width || h !== height) {
+        width = w;
+        height = h;
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA8,
+          w,
+          h,
+          0,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          null,
+        );
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          gl.LINEAR_MIPMAP_LINEAR,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.framebufferTexture2D(
+          gl.FRAMEBUFFER,
+          gl.COLOR_ATTACHMENT0,
+          gl.TEXTURE_2D,
+          texture,
+          0,
+        );
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+        gl.framebufferRenderbuffer(
+          gl.FRAMEBUFFER,
+          gl.DEPTH_ATTACHMENT,
+          gl.RENDERBUFFER,
+          depth,
+        );
+        ready =
+          gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+      }
+      if (!ready) gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    },
+    present(light: boolean, scale: number) {
+      if (!ready) return;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.disable(gl.DEPTH_TEST);
+      gl.disable(gl.BLEND);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.useProgram(program);
+      gl.uniform1i(themed, light ? 1 : 0);
+      gl.uniform1f(pixelScale, scale);
+      gl.bindVertexArray(quad);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    },
+  };
+}
 
 function softenContour(points: Point3[]): Point3[] {
   return points.map((p, index) => {
@@ -241,7 +399,7 @@ function packPigments(
           Math.round(((matte + (rgb[i] - matte) * amount) * 127) / 255),
         ),
       );
-    const emphasis = focal >= 0.4 ? Math.round(Math.min(1, focal) * 7) : 0;
+    const emphasis = Math.round(Math.max(0, Math.min(1, focal)) * 7);
     return (
       (emphasis << 21) | (channel(0) << 14) | (channel(1) << 7) | channel(2)
     );
@@ -325,20 +483,25 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     gl.compileShader(shader);
     return shader;
   }
-  const vert = compile(gl.VERTEX_SHADER, vertexSource);
-  const frag = compile(gl.FRAGMENT_SHADER, fragmentSource);
-  const program = gl.createProgram();
-  if (vert && frag && program) {
-    gl.attachShader(program, vert);
-    gl.attachShader(program, frag);
-    gl.linkProgram(program);
+  function link(vertex: string, fragment: string) {
+    const vert = compile(gl.VERTEX_SHADER, vertex),
+      frag = compile(gl.FRAGMENT_SHADER, fragment);
+    const program = gl.createProgram();
+    if (vert && frag && program) {
+      gl.attachShader(program, vert);
+      gl.attachShader(program, frag);
+      gl.linkProgram(program);
+    }
+    if (vert) gl.deleteShader(vert);
+    if (frag) gl.deleteShader(frag);
+    if (!program || !gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      if (program) gl.deleteProgram(program);
+      return null;
+    }
+    return program;
   }
-  if (vert) gl.deleteShader(vert);
-  if (frag) gl.deleteShader(frag);
-  if (!program || !gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    if (program) gl.deleteProgram(program);
-    return null;
-  }
+  const program = link(vertexSource, fragmentSource);
+  if (!program) return null;
 
   const sorted = cells.slice().sort((a, b) => a.soma.z - b.soma.z);
   const fibers: number[] = [];
@@ -374,12 +537,24 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       material.pigment,
       material.lightPigment,
       1,
-      material.emission,
+      0.68 + 0.32 * material.emission,
+    );
+    const distalPigment = packPigments(
+      material.pigment,
+      material.lightPigment,
+      0.91,
+      0.25,
+    );
+    const intermediatePigment = packPigments(
+      material.pigment,
+      material.lightPigment,
+      0.98,
+      0.5 + 0.16 * material.emission,
     );
     const axonPigment = packPigments(
       material.pigment,
       material.lightPigment,
-      0.81,
+      0.46,
     );
     // Localize the strongest emission to the soma neighborhood and a second
     // point along a contiguous traced path. Nothing is drawn in empty space.
@@ -411,15 +586,13 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       );
     }
     for (const branch of cell.branches) {
-      const fiberPigment = branch.axon ? axonPigment : pigment;
       const samples = endpointRadii(branch),
         points = softenContour(branch.points);
       for (let i = 1; i < points.length; i++) {
         const a = points[i - 1],
           b = points[i];
         if (a.x === b.x && a.y === b.y && a.z === b.z) continue;
-        append(fibers, a, b, fiberPigment, samples[i - 1], samples[i]);
-        if (material.emission <= 0 || branch.axon) continue;
+
         const x = (a.x + b.x) * 0.5,
           y = (a.y + b.y) * 0.5,
           z = (a.z + b.z) * 0.5;
@@ -427,6 +600,15 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
           (x - cell.soma.x) ** 2 +
           (y - cell.soma.y) ** 2 +
           (z - cell.soma.z) ** 2;
+        const fiberPigment = branch.axon
+          ? axonPigment
+          : ds < 22 ** 2
+            ? pigment
+            : ds < 69 ** 2
+              ? intermediatePigment
+              : distalPigment;
+        append(fibers, a, b, fiberPigment, samples[i - 1], samples[i]);
+        if (material.emission <= 0 || branch.axon) continue;
         const dd =
           (x - distal.x) ** 2 + (y - distal.y) ** 2 + (z - distal.z) ** 2;
         const concentration = Math.max(
@@ -511,7 +693,12 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   const lightCount = luminousFibers.length / 10;
   const clouds = glowSites.length ? upload(glowSites) : null;
   const cloudCount = glowSites.length / 10;
+  const opticalProgram = link(opticalVertex, opticalFragment);
+  const optics = opticalProgram
+    ? tissueOptics(gl, corners, opticalProgram)
+    : null;
   function dispose() {
+    optics?.dispose();
     gl.deleteBuffer(corners);
     gl.deleteBuffer(elementBuffer);
     for (const layer of [lines, points, mesh, lightLayer, clouds]) {
@@ -573,6 +760,10 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       light = false,
     ) {
       const matte = light ? 1 : 0;
+      optics?.begin(canvas.width, canvas.height);
+      gl.useProgram(program);
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.BLEND);
       gl.uniform1i(lightTheme, matte);
       gl.clearColor(matte, matte, matte, 1);
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -616,6 +807,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
         gl.uniform1i(glow, 0);
         gl.blendEquation(gl.FUNC_ADD);
       }
+      optics?.present(light, scale);
     },
   };
 }

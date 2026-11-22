@@ -3,61 +3,63 @@ import type { Branch, Cell, Point3 } from "../data/dendrites";
 type RGB = [number, number, number];
 type Material = { pigment: RGB; lightPigment: RGB; emission: number };
 
-// Segment IDs refer to individual reconstructed cells. The warm focal arbor and
-// its neighbors keep the same identities and colors when visitors rotate the tissue.
-const focal: Record<string, Material> = {
-  "864691134918921738": {
-    pigment: [236, 186, 126],
-    lightPigment: [143, 96, 48],
-    emission: 0.94,
-  },
-  "864691134886600954": {
-    pigment: [182, 130, 144],
-    lightPigment: [134, 85, 108],
-    emission: 0.64,
-  },
-  "864691134939989091": {
-    pigment: [137, 149, 182],
-    lightPigment: [85, 104, 139],
-    emission: 0.42,
-  },
-  "864691134989865338": {
-    pigment: [117, 161, 156],
-    lightPigment: [72, 117, 117],
-    emission: 0.34,
-  },
-  "864691134941875299": {
-    pigment: [151, 132, 156],
-    lightPigment: [116, 102, 130],
-    emission: 0.28,
-  },
-  "864691134948513276": {
-    pigment: [131, 139, 155],
-    lightPigment: [101, 109, 126],
-    emission: 0.18,
-  },
-  "864691134964430623": {
-    pigment: [117, 133, 147],
-    lightPigment: [104, 122, 134],
-    emission: 0.13,
-  },
+// Paired segmentation colors keep each arbor recognizable against either matte.
+const pigments: Record<string, [RGB, RGB]> = {
+  fuchsia: [[253, 36, 190], [150, 10, 109]],
+  orchid:  [[226, 59, 245], [140, 40, 156]],
+  violet:  [[158, 91, 255], [91, 58, 166]],
+  indigo:  [[109, 126, 253], [57, 76, 166]],
+  aqua:    [[38, 238, 225], [0, 133, 136]],
+  azure:   [[58, 196, 248], [18, 109, 160]],
+  mint:    [[59, 238, 167], [5, 134, 92]],
+  emerald: [[77, 226, 100], [36, 127, 55]],
+  lime:    [[189, 241, 50], [104, 134, 8]],
+  yellow:  [[255, 223, 54], [150, 119, 1]],
+  amber:   [[255, 160, 53], [168, 88, 21]],
+  coral:   [[251, 99, 82], [169, 65, 54]],
+  carmine: [[250, 58, 112], [166, 38, 77]],
 };
+
+const labels = [
+  "aqua", "fuchsia", "yellow", "mint", "violet", "carmine", "azure",
+  "lime", "orchid", "amber", "indigo", "emerald", "coral", "aqua",
+  "fuchsia", "violet", "orchid", "yellow",
+];
+
+// Choose conspicuous, spatially separated proximal arbors across the volume.
+// Remaining segment IDs receive stable labels with individual stain densities.
+const landmarks: Record<string, string> = {
+  "864691134918921738": "aqua",
+  "864691134886600954": "fuchsia",
+  "864691134939989091": "amber",
+  "864691134989865338": "lime",
+  "864691134941875299": "violet",
+  "864691134918238218": "mint",
+  "864691134885508858": "yellow",
+  "864691134948203260": "carmine",
+  "864691134919017994": "emerald",
+  "864691134939988067": "azure",
+  "864691134941299811": "orchid",
+};
+
 export function cellMaterial(cell: Cell): Material {
-  if (focal[cell.id]) return focal[cell.id];
-  const [r, g, b] = [1, 3, 5].map(
-    (i) => parseInt(cell.color.slice(i, i + 2), 16) / 255,
-  );
-  const shade = cell.soma.x < -60 ? 0.68 : 0.94;
-  const pigment: RGB = [
-    (47 + 19 * r) * shade,
-    (45 + 13 * g) * shade,
-    (51 + 19 * b) * shade,
+  let hash = 2166136261;
+  for (let i = 0; i < cell.id.length; i++)
+    hash = Math.imul(hash ^ cell.id.charCodeAt(i), 16777619);
+  const seed = hash >>> 0;
+  const landmark = landmarks[cell.id];
+  const [dark, light] = pigments[landmark ?? labels[seed % labels.length]];
+  const density = ((seed >>> 8) & 255) / 255;
+  const strength = landmark ? 1 : 0.73 + 0.25 * density;
+  const paper = landmark ? 0 : 0.04 + 0.18 * (1 - density);
+  const emission = landmark ? 0.86 : density > 0.53 ? 0.17 + 0.46 * density ** 3 : 0;
+  const pigment: RGB = [dark[0] * strength, dark[1] * strength, dark[2] * strength];
+  const lightPigment: RGB = [
+    light[0] + (255 - light[0]) * paper,
+    light[1] + (255 - light[1]) * paper,
+    light[2] + (255 - light[2]) * paper,
   ];
-  return {
-    pigment,
-    lightPigment: [175 + 12 * r, 177 + 12 * g, 182 + 12 * b],
-    emission: 0,
-  };
+  return { pigment, lightPigment, emission };
 }
 
 export function focalGlow(cell: Cell) {

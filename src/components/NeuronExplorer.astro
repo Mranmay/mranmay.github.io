@@ -59,6 +59,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .specimen {
     --field-matte: #000;
     --poster-position: 50%;
+    --portrait-zoom: 1;
     --control-ink: #fff;
     --control-bg: #0a0a0c99;
     --control-border: #fff6;
@@ -108,23 +109,27 @@ import volumeUrl from "@/data/microns-volume.json?url";
     pointer-events: none;
   }
   .volume-poster {
-    background: var(--field-matte) url("/images/microns-field-dark.webp")
+    background: var(--field-matte) url("/images/microns-tissue-dark.webp")
       var(--poster-position) center/cover no-repeat;
     background-image: image-set(
-      url("/images/microns-field-dark.avif") type("image/avif"),
-      url("/images/microns-field-dark.webp") type("image/webp")
+      url("/images/microns-tissue-dark.avif") type("image/avif"),
+      url("/images/microns-tissue-dark.webp") type("image/webp")
     );
   }
   :global([data-theme="light"]) .volume-poster {
-    background-image: url("/images/microns-field-light.webp");
+    background-image: url("/images/microns-tissue-light.webp");
     background-image: image-set(
-      url("/images/microns-field-light.avif") type("image/avif"),
-      url("/images/microns-field-light.webp") type("image/webp")
+      url("/images/microns-tissue-light.avif") type("image/avif"),
+      url("/images/microns-tissue-light.webp") type("image/webp")
     );
   }
   @media (max-width: 760px) and (orientation: portrait) {
     .specimen {
-      --poster-position: 74%;
+      --poster-position: 67%;
+      --portrait-zoom: 1.24;
+    }
+    .volume-poster {
+      background-size: auto 124%;
     }
     .volume-poster,
     canvas {
@@ -139,7 +144,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .with-gpu .volume-geometry {
     visibility: visible;
   }
-  .ready .volume-poster {
+  .ready:not(.poster-active) .volume-poster {
     display: none;
   }
   .playback {

@@ -9,7 +9,6 @@ const {
   description,
   author,
   pubDate,
-  updatedDate,
   heroImage,
   heroImageAlt,
   tags,
@@ -24,13 +23,6 @@ const {
         <DateLabel date={pubDate} />{author && <> · {author}</>}
       </p>
       <h1>{title}</h1><p class="lead">{description}</p>
-      {
-        updatedDate && (
-          <p class="credit">
-            Updated <DateLabel date={updatedDate} />
-          </p>
-        )
-      }
       {
         tags?.length && (
           <ul class="tags">
