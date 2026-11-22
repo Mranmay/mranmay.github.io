@@ -1,3 +1,4 @@
+import { mapCells } from "../data/neuron-scheduling";
 import type { Cell, Point3 } from "../data/dendrites";
 
 import {
@@ -114,7 +115,7 @@ float cableScatter(float sigma,float radius,float scale) {
   return endFalloff*exp(-.5*radial*radial);
 }
 void main() {
-  float coverage;
+  float coverage = 1.;
   float surfaceZ;
   vec3 n;
   if (glowPass) {
@@ -135,13 +136,18 @@ void main() {
                              .085*cableScatter(7.3,r,scale));
     }
     vec3 spill = lightTheme ? (vec3(1.)-color)*strength*.43 : color*strength*.66;
+    if (lightTheme) {
+      // Multiple different labels should leave a luminous paper channel
+      // instead of building a neutral brown or gray stain at crossings.
+      float neutralAmount=min(min(spill.r,spill.g),spill.b);
+      spill=(spill-neutralAmount)*1.15+.38*neutralAmount;
+    }
     if (max(max(spill.r,spill.g),spill.b) < .004) discard;
     gl_FragDepth = clamp(.5-(soma ? z : z+r)/1800.,0.,1.);
     pixel = vec4(lightTheme ? vec3(1.)-spill : spill,1.);
     return;
   }
   if (membrane) {
-    coverage = 1.;
     surfaceZ = surfaceDepth;
     n = normalize(surfaceNormal);
     // A crop can expose the back of a proximal process. Both sides are visible.
@@ -165,6 +171,7 @@ void main() {
     float footprint = sqrt(max(0.,1.+C-B*B/A));
     float edgePixels = max(fwidth(footprint),.001);
     coverage = clamp(.5+(1.-footprint)/edgePixels,0.,1.);
+    if (coverage < .008 || ((coverage < .88) != fringe)) discard;
     float root = (-B+sqrt(max(0.,B*B-A*C)))/A;
     vec3 samplePoint = vec3(p,root);
     n = normalize(samplePoint*inverseMinor+tangent*(offset*dot(samplePoint,tangent)));
@@ -180,6 +187,7 @@ void main() {
     float aperture = 1.+(focal < .01 ? 2.40 : 1.38)*defocus;
     coverage = clamp((radius+.5*aperture-dist)/aperture,0.,1.)
              - clamp((.5*aperture-radius-dist)/aperture,0.,1.);
+    if (coverage < .008 || ((coverage < .88) != fringe)) discard;
     float incline = length(tangent.xy);
     vec2 dir = incline < .0001 ? vec2(1.,0.) : tangent.xy/incline;
     vec3 across = vec3(-dir.y,dir.x,0.);
@@ -193,9 +201,6 @@ void main() {
       surfaceZ = center + world*front/max(.4,incline);
     }
   }
-  // Opaque surfaces populate depth first. A second pass blends the uncovered
-  // footprint without letting a translucent edge erase geometry behind it.
-  if (coverage < .008 || ((coverage < .88) != fringe)) discard;
   gl_FragDepth = clamp(.5-surfaceZ/1800.,0.,1.);
   float diffuse = clamp(.13+.87*dot(n,key),0.,1.);
   float lighting = .53+.55*diffuse;
@@ -204,8 +209,10 @@ void main() {
   vec3 matte = field;
   if (lightTheme) {
     matte = vec3(1.);
-    lit = mix(color*.79,color+(1.-color)*.23,diffuse);
-    transmittance = .33+.64*smoothstep(-130.,150.,surfaceZ);
+    float peakPigment=max(max(color.r,color.g),color.b);
+    vec3 illuminated=color*(.97/max(peakPigment,.58));
+    lit = mix(color*.93,illuminated,.26+.69*diffuse);
+    transmittance = .40+.58*smoothstep(-130.,150.,surfaceZ);
   }
   // The material's key light affects actual membrane and thicker proximal
   // cables. The fine background arbors retain their own measured caliber.
@@ -213,6 +220,7 @@ void main() {
   float incident = max(0.,.46*n.z+.54*dot(n,key));
   float emphasis = focal*wide*(.43+.57*incident);
   vec3 highlight = mix(color,lightTheme ? vec3(1.) : vec3(1.,.95,.85),.30);
+  if (lightTheme) highlight = color/max(.54,max(max(color.r,color.g),color.b));
   lit = mix(lit,highlight,emphasis*(lightTheme ? .26 : .79));
   transmittance = mix(transmittance,1.,emphasis*.68);
   if(membrane) {
@@ -271,6 +279,15 @@ void main(){
   float retained=lightTheme ? .92 : mix(.747,.874,smoothstep(.055,.53,peak));
   radiance*=retained*(1.-.075*smoothstep(.62,1.,peak));
   radiance=max(vec3(0.),mix(vec3(dot(radiance,vec3(.2126,.7152,.0722))),radiance,1.065));
+  if (lightTheme) {
+    // Separate neutral attenuation from the chromatic pigment carried by a
+    // fiber. Keep paper highlights bright while retaining colored edges.
+    float neutralAmount=min(min(radiance.r,radiance.g),radiance.b);
+    vec3 dye=radiance-neutralAmount;
+    radiance=neutralAmount*.73+dye*1.25;
+    vec3 shoulder=max(radiance-.90,0.);
+    radiance=min(radiance,.90)+shoulder/(1.+12.*shoulder);
+  }
   pixel=vec4(lightTheme ? vec3(1.)-radiance : radiance,1.);
 }`;
 
@@ -469,7 +486,7 @@ function appendSurface(
   }
 }
 
-export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
+export async function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   let candidate: WebGL2RenderingContext | null;
   try {
     candidate = canvas.getContext("webgl2", {
@@ -493,7 +510,8 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     gl.compileShader(shader);
     return shader;
   }
-  function link(vertex: string, fragment: string) {
+  const parallelCompile = gl.getExtension("KHR_parallel_shader_compile");
+  async function link(vertex: string, fragment: string) {
     const vert = compile(gl.VERTEX_SHADER, vertex),
       frag = compile(gl.FRAGMENT_SHADER, fragment);
     const program = gl.createProgram();
@@ -504,13 +522,18 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
     }
     if (vert) gl.deleteShader(vert);
     if (frag) gl.deleteShader(frag);
+    if (program && parallelCompile) {
+      while (!gl.isContextLost() && !gl.getProgramParameter(program, parallelCompile.COMPLETION_STATUS_KHR)) {
+        await new Promise<void>(resolve => setTimeout(resolve, 16));
+      }
+    }
     if (!program || !gl.getProgramParameter(program, gl.LINK_STATUS)) {
       if (program) gl.deleteProgram(program);
       return null;
     }
     return program;
   }
-  const program = link(vertexSource, fragmentSource);
+  const program = await link(vertexSource, fragmentSource);
   if (!program) return null;
 
   const sorted = cells.slice().sort((a, b) => a.soma.z - b.soma.z);
@@ -541,7 +564,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
       radiusB,
     );
   }
-  for (const cell of sorted) {
+  await mapCells(sorted, (cell) => {
     const material = cellMaterial(cell);
     const pigment = packPigments(
       material.pigment,
@@ -640,7 +663,7 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
         }
       }
     }
-  }
+  });
 
   const corners = gl.createBuffer();
   if (!corners) {
@@ -703,11 +726,13 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
   const lightCount = luminousFibers.length / 10;
   const clouds = glowSites.length ? upload(glowSites) : null;
   const cloudCount = glowSites.length / 10;
-  const opticalProgram = link(opticalVertex, opticalFragment);
+  const opticalProgram = await link(opticalVertex, opticalFragment);
   const optics = opticalProgram
     ? tissueOptics(gl, corners, opticalProgram)
     : null;
+  let lastFrame: WebGLSync | null = null;
   function dispose() {
+    gl.deleteSync(lastFrame);
     optics?.dispose();
     gl.deleteBuffer(corners);
     gl.deleteBuffer(elementBuffer);
@@ -760,6 +785,11 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
 
   return {
     dispose,
+    readyToDraw() {
+      // Poll without blocking. Slow GPUs finish their current full-resolution
+      // frame before getting another, even in a desktop-sized mobile viewport.
+      return !lastFrame || gl.clientWaitSync(lastFrame, 0, 0) !== gl.TIMEOUT_EXPIRED;
+    },
     draw(
       yaw: number,
       pitch: number,
@@ -821,6 +851,8 @@ export function initNeuronGL(canvas: HTMLCanvasElement, cells: Cell[]) {
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
       optics?.present(light, scale);
+      gl.deleteSync(lastFrame);
+      lastFrame = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     },
   };
 }

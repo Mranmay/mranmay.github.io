@@ -1,4 +1,5 @@
 import type { Cell, Point3 } from "@/data/dendrites";
+import { mapCells } from "../data/neuron-scheduling";
 import { initNeuronGL } from "./neuron-gl";
 import {
   cellMaterial,
@@ -238,15 +239,14 @@ function halo(color: string) {
   return sprite;
 }
 
-export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
+export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const stimulus = figure.querySelector<HTMLButtonElement>(".stimulus")!;
   const canvas = figure.querySelector<HTMLCanvasElement>(".volume-activity")!;
   const glCanvas = figure.querySelector<HTMLCanvasElement>(".volume-geometry")!;
   const context = canvas.getContext("2d");
   if (!context) return;
   const ctx = context;
-  let gpu = initNeuronGL(glCanvas, cells);
-  figure.classList.toggle("with-gpu", Boolean(gpu));
+  let gpu = await initNeuronGL(glCanvas, cells);
   // Keep the full depth-rendered, theme-matched surface beneath live tracings on
   // devices without WebGL. A drag switches to interactive software geometry.
   let posterActive = !gpu;
@@ -254,7 +254,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const playback = figure.querySelector<HTMLButtonElement>(".playback")!;
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const compactLayout = matchMedia("(max-width: 760px)");
-  const neurons = cells.map(prepare);
+  const neurons = await mapCells(cells, prepare);
   const sorted = neurons.slice();
   const halos = new Map<string, HTMLCanvasElement>();
   let lightTheme = document.documentElement.dataset.theme === "light";
@@ -287,7 +287,11 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     offsetX = 0,
     offsetY = 0;
   let fiberScale = 1;
+  const touchDevice = navigator.maxTouchPoints > 0;
   let dragging = false;
+  let viewPending = false;
+  let scrolling = false;
+  let scrollTimer = 0;
   const background = document.createElement("canvas");
   const buffer = background.getContext("2d", { alpha: false })!;
   const emissionSurface = document.createElement("canvas");
@@ -422,7 +426,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
           atmosphere *
           n.material.emission *
           power *
-          (lightTheme ? 0.76 : 1);
+          (lightTheme ? 0.94 : 1);
         buffer.drawImage(
           halos.get(n.color)!,
           p.x - dia / 2,
@@ -462,12 +466,13 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     buffer.imageSmoothingQuality = "high";
     for (const { layer, divisor } of scattering) {
       if (divisor === 2) {
-        buffer.globalAlpha = lightTheme ? 0.47 : 0.63;
+        buffer.globalAlpha = lightTheme ? 0.42 : 0.63;
       } else if (divisor === 6) {
-        buffer.globalAlpha = lightTheme ? 0.26 : 0.33;
+        buffer.globalAlpha = lightTheme ? 0.21 : 0.33;
       } else {
-        buffer.globalCompositeOperation = lightTheme ? "multiply" : "screen";
-        buffer.globalAlpha = (divisor === 12 ? 0.55 : 0.79) * (lightTheme ? 0.58 : 1);
+        // Overlapping halos retain the lit surface color on white.
+        buffer.globalCompositeOperation = lightTheme ? "darken" : "screen";
+        buffer.globalAlpha = (divisor === 12 ? 0.55 : 0.79) * (lightTheme ? 0.78 : 1);
       }
       buffer.drawImage(layer, 0, 0, width, height);
     }
@@ -590,13 +595,18 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   function geometry(force = false) {
     const a = yaw + Math.sin(autoTime * 0.11) * 0.21,
       b = pitch + Math.sin(autoTime * 0.072) * 0.1;
-    // Reuse the projected layer when slow camera drift moves it by less than a pixel.
+    // The activity layer keeps its own cadence. At this camera speed a touch
+    // screen can reuse the full-detail tissue across several pulse frames.
+    const threshold = gpu ? (touchDevice ? 0.0021 : 0.00065) : 0.0027;
     if (
       !force &&
-      Math.abs(a - lastYaw) < (gpu ? 0.0003 : 0.0027) &&
-      Math.abs(b - lastPitch) < (gpu ? 0.0003 : 0.0027)
+      !viewPending &&
+      Math.abs(a - lastYaw) < threshold &&
+      Math.abs(b - lastPitch) < threshold
     )
       return;
+    if (!force && gpu && !gpu.readyToDraw()) return;
+    viewPending = false;
     lastYaw = a;
     lastPitch = b;
     project = camera(a, b);
@@ -605,6 +615,21 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     if (gpu) {
       gpu.draw(a, b, scale, offsetX, offsetY, fiberScale, lightTheme);
       return;
+    }
+    // Composite the cached software tissue below the transparent activity
+    // canvas. A pulse can now advance without copying the entire frame.
+    if (!background.parentNode) {
+      background.setAttribute("aria-hidden", "true");
+      background.className = "volume-software";
+      canvas.before(background);
+    }
+    if (background.width !== canvas.width || background.height !== canvas.height) {
+      background.width = canvas.width;
+      background.height = canvas.height;
+      for (const { layer, divisor } of scattering) {
+        layer.width = Math.max(1, Math.ceil(canvas.width / divisor));
+        layer.height = Math.max(1, Math.ceil(canvas.height / divisor));
+      }
     }
     buffer.setTransform(1, 0, 0, 1, 0, 0);
     buffer.globalAlpha = 1;
@@ -656,8 +681,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   function paint() {
     geometry();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (gpu || posterActive) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    else ctx.drawImage(background, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
     pulses = pulses.filter((p) => clock - p.born <= p.duration);
     for (const p of pulses) {
@@ -691,11 +715,11 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         ctx.lineWidth = width;
         ctx.stroke();
       }
-      stroke(14, 2.55, p.neuron.color, 0.47);
+      stroke(14, 2.55, p.neuron.color, lightTheme ? 0.86 : 0.47);
       stroke(
         7.5,
         1.15,
-        lightTheme ? "#885a33" : "#f9e5bc",
+        lightTheme ? "#fff8c7" : "#f9e5bc",
         p.neuron.material.emission ? 0.92 : 0.48,
       );
       ctx.globalAlpha = 1;
@@ -757,14 +781,14 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       radius,
       core + 1.1,
       0.97 * attenuation,
-      lightTheme ? "#aa6338" : "#ffe4a5",
+      lightTheme ? ink : "#ffe4a5",
     );
     band(
       radius - 8.5,
       radius,
       core * 0.82,
       attenuation,
-      lightTheme ? "#663751" : "#fffbea",
+      lightTheme ? "#fff8cb" : "#fffbea",
     );
     if (radius < 38 || stillWave === w) {
       const intensity = stillWave === w ? 1 : Math.max(0, 1 - radius / 38);
@@ -782,7 +806,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         );
       }
       ctx.globalAlpha = intensity;
-      ctx.fillStyle = lightTheme ? "#693b48" : "#fff9d6";
+      ctx.fillStyle = lightTheme ? "#ffffec" : "#fff9d6";
       ctx.beginPath();
       ctx.arc(x, y, core * 0.61, 0, Math.PI * 2);
       ctx.fill();
@@ -791,8 +815,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   }
   function tick(time: number) {
     frame = 0;
-    if (!visible || document.hidden) return;
-    if (previous && time - drawn < 1000 / 30) {
+    if (!visible || document.hidden || scrolling) return;
+    if (!viewPending && previous && time - drawn < 1000 / 30 - 0.5) {
       frame = requestAnimationFrame(tick);
       return;
     }
@@ -808,11 +832,11 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       ambient = clock + 0.48 + 0.19 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
     }
     paint();
-    if (auto) frame = requestAnimationFrame(tick);
+    if (auto || viewPending) frame = requestAnimationFrame(tick);
     else previous = 0;
   }
   function play() {
-    if (!frame && visible && !document.hidden)
+    if (!frame && visible && !document.hidden && !scrolling)
       frame = requestAnimationFrame(tick);
   }
   function resetTiming() {
@@ -852,13 +876,6 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       if (gpu) {
         glCanvas.width = w;
         glCanvas.height = h;
-      } else {
-        background.width = w;
-        background.height = h;
-        for (const { layer, divisor } of scattering) {
-          layer.width = Math.max(1, Math.ceil(w / divisor));
-          layer.height = Math.max(1, Math.ceil(h / divisor));
-        }
       }
       scale = Math.max(w / W, h / H) * 1.05;
       offsetX = w / 2 - 318 * scale;
@@ -1007,8 +1024,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     }
     yaw = down.a + dx * 0.007;
     pitch = Math.max(-0.95, Math.min(0.95, down.b + dy * 0.005));
-    geometry();
-    paint();
+    viewPending = true;
+    play();
   });
   function release() {
     down = null;
@@ -1056,6 +1073,20 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   });
   motion.addEventListener("change", resetTiming);
   document.addEventListener("visibilitychange", resetTiming);
+  window.addEventListener("scroll", () => {
+    if (!visible || document.hidden) return;
+    if (!scrolling) {
+      scrolling = true;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      previous = 0;
+    }
+    window.clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(() => {
+      scrolling = false;
+      play();
+    }, 120);
+  }, { passive: true });
   glCanvas.addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
     if (!gpu) return;
@@ -1071,6 +1102,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     resetTiming();
   }).observe(figure);
   resize();
+  figure.classList.toggle("with-gpu", Boolean(gpu));
   figure.classList.add("ready");
   stimulus.disabled = false;
 }

@@ -5,19 +5,19 @@ type Material = { pigment: RGB; lightPigment: RGB; emission: number };
 
 // Paired segmentation colors keep each arbor recognizable against either matte.
 const pigments: Record<string, [RGB, RGB]> = {
-  fuchsia: [[253, 36, 190], [150, 10, 109]],
-  orchid:  [[226, 59, 245], [140, 40, 156]],
-  violet:  [[158, 91, 255], [91, 58, 166]],
-  indigo:  [[109, 126, 253], [57, 76, 166]],
-  aqua:    [[38, 238, 225], [0, 133, 136]],
-  azure:   [[58, 196, 248], [18, 109, 160]],
-  mint:    [[59, 238, 167], [5, 134, 92]],
-  emerald: [[77, 226, 100], [36, 127, 55]],
-  lime:    [[189, 241, 50], [104, 134, 8]],
-  yellow:  [[255, 223, 54], [150, 119, 1]],
-  amber:   [[255, 160, 53], [168, 88, 21]],
-  coral:   [[251, 99, 82], [169, 65, 54]],
-  carmine: [[250, 58, 112], [166, 38, 77]],
+  fuchsia: [[253, 36, 190], [236, 8, 161]],
+  orchid:  [[226, 59, 245], [196, 35, 244]],
+  violet:  [[158, 91, 255], [133, 61, 243]],
+  indigo:  [[109, 126, 253], [64, 102, 237]],
+  aqua:    [[38, 238, 225], [0, 185, 189]],
+  azure:   [[58, 196, 248], [0, 151, 225]],
+  mint:    [[59, 238, 167], [0, 179, 116]],
+  emerald: [[77, 226, 100], [31, 166, 66]],
+  lime:    [[189, 241, 50], [125, 178, 6]],
+  yellow:  [[255, 223, 54], [236, 177, 2]],
+  amber:   [[255, 160, 53], [244, 119, 5]],
+  coral:   [[251, 99, 82], [238, 76, 62]],
+  carmine: [[250, 58, 112], [234, 33, 97]],
 };
 
 const labels = [
@@ -51,7 +51,7 @@ export function cellMaterial(cell: Cell): Material {
   const [dark, light] = pigments[landmark ?? labels[seed % labels.length]];
   const density = ((seed >>> 8) & 255) / 255;
   const strength = landmark ? 1 : 0.73 + 0.25 * density;
-  const paper = landmark ? 0 : 0.04 + 0.18 * (1 - density);
+  const paper = landmark ? 0 : 0.025 + 0.10 * (1 - density);
   const emission = landmark ? 0.86 : density > 0.53 ? 0.17 + 0.46 * density ** 3 : 0;
   const pigment: RGB = [dark[0] * strength, dark[1] * strength, dark[2] * strength];
   const lightPigment: RGB = [

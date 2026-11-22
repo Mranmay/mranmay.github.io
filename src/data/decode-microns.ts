@@ -1,4 +1,5 @@
 import type { Cell, Point3 } from "./dendrites";
+import { mapCells } from "./neuron-scheduling";
 import { decodeSomata } from "./decode-somata";
 
 interface PackedCell {
@@ -14,9 +15,9 @@ interface PackedCell {
 
 // Each path starts at an offset from the soma and continues as signed x/y/z
 // steps. Varints keep the many short steps on fine branches small on the wire.
-export function decodeMicrons(records: readonly PackedCell[]): Cell[] {
+export function decodeMicrons(records: readonly PackedCell[]): Promise<Cell[]> {
   const surfaces = decodeSomata();
-  return records.map(({ id, soma, radius, color, paths, radii, axons }) => {
+  return mapCells(records, ({ id, soma, radius, color, paths, radii, axons }) => {
     const bytes = atob(paths);
     const radiusBytes = radii ? atob(radii) : null;
     const compartments = axons ? atob(axons) : null;
