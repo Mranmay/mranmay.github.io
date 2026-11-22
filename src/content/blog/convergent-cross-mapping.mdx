@@ -15,9 +15,7 @@ Suppose I observe just the second coordinate, $x_2$, of a Rössler oscillator. T
 
 I use the first $L$ rows as a reference library. For each later row, I find the four closest histories in the library by Euclidean distance. Each neighbor comes with its own recorded $x_1$ value. I estimate the missing $x_1$ by averaging those four values, with an exponential weight that gives the closest histories more influence. Then I compute the Pearson correlation $\rho$ between my estimates and the held-out $x_1$ values. I repeat at different library lengths and swap the two coordinates to get the second curve.
 
-## Experiment update · November 24, 2025
-
-### A known driver and a 100-unit network
+## A known driver and a 100-unit network
 
 In my first simulation, a Rössler oscillator $X$ drove a recurrent rate network $Y$. I kept only the oscillator's first coordinate, $x_1(t)$, and the activity of the network's fourth unit, $y_4(t)$. For each signal I used a ten-dimensional embedding with a delay of one sample.
 
@@ -28,7 +26,7 @@ The blue curve estimates the driver from the responding unit's history. It sits 
   <figcaption>Simulated rate network. Blue estimates the oscillator from one network unit. Orange estimates that unit from the oscillator.</figcaption>
 </figure>
 
-### Checking the same calculation on three variables
+## Checking the same calculation on three variables
 
 I went back to the oscillator itself. Its three coordinates follow
 

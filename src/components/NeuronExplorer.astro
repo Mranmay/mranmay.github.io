@@ -14,14 +14,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
     aria-label="Stimulate a neuron. Drag horizontally to rotate the reconstruction."
     disabled
   >
-    <img
-      class="volume-poster"
-      src="/images/microns-field.webp"
-      width="1152"
-      height="729"
-      alt=""
-      fetchpriority="high"
-    />
+    <span class="volume-poster" aria-hidden="true"></span>
     <canvas class="volume-geometry" aria-hidden="true"></canvas>
     <canvas class="volume-activity" aria-hidden="true"></canvas>
   </button>
@@ -64,11 +57,23 @@ import volumeUrl from "@/data/microns-volume.json?url";
 </script>
 <style>
   .specimen {
+    --field-matte: #000;
+    --poster-position: 50%;
+    --portrait-zoom: 1;
+    --control-ink: #fff;
+    --control-bg: #0a0a0c99;
+    --control-border: #fff6;
     margin: 0;
     min-width: 0;
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+  :global([data-theme="light"]) .specimen {
+    --field-matte: #fff;
+    --control-ink: #29272c;
+    --control-bg: #ffffffb8;
+    --control-border: #24202d55;
   }
   .stimulus {
     display: block;
@@ -80,7 +85,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
     overflow: hidden;
     border: 0;
     border-radius: 0;
-    background: #000;
+    background: var(--field-matte);
     cursor: grab;
     touch-action: pan-y pinch-zoom;
     -webkit-tap-highlight-color: transparent;
@@ -104,11 +109,32 @@ import volumeUrl from "@/data/microns-volume.json?url";
     pointer-events: none;
   }
   .volume-poster {
-    object-fit: cover;
+    background: var(--field-matte) url("/images/microns-tissue-dark.webp")
+      var(--poster-position) center/cover no-repeat;
+    background-image: image-set(
+      url("/images/microns-tissue-dark.avif") type("image/avif"),
+      url("/images/microns-tissue-dark.webp") type("image/webp")
+    );
   }
-  @media (min-width: 761px) {
+  :global([data-theme="light"]) .volume-poster {
+    background-image: url("/images/microns-tissue-light.webp");
+    background-image: image-set(
+      url("/images/microns-tissue-light.avif") type("image/avif"),
+      url("/images/microns-tissue-light.webp") type("image/webp")
+    );
+  }
+  @media (max-width: 760px) and (orientation: portrait) {
+    .specimen {
+      --poster-position: 67%;
+      --portrait-zoom: 1.24;
+    }
     .volume-poster {
-      transform: translateX(8%);
+      background-size: auto 124%;
+    }
+    .volume-poster,
+    canvas {
+      transform: translateY(-33%);
+      mask-image: linear-gradient(to bottom, #000 76%, transparent 100%);
     }
   }
   canvas {
@@ -118,8 +144,8 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .with-gpu .volume-geometry {
     visibility: visible;
   }
-  .ready .volume-poster {
-    visibility: hidden;
+  .ready:not(.poster-active) .volume-poster {
+    display: none;
   }
   .playback {
     position: absolute;
@@ -131,16 +157,16 @@ import volumeUrl from "@/data/microns-volume.json?url";
     width: 2.75rem;
     height: 2.75rem;
     padding: 0;
-    border: 1px solid #fff6;
+    border: 1px solid var(--control-border);
     border-radius: 50%;
-    color: #fff;
-    background: #08090d99;
+    color: var(--control-ink);
+    background: var(--control-bg);
     cursor: pointer;
   }
   .playback:hover,
   .playback:focus-visible {
-    background: #1e1e27;
-    border-color: #fff;
+    background: var(--field-matte);
+    border-color: var(--control-ink);
   }
   .play-icon,
   .playback[data-paused] .pause-icon {

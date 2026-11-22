@@ -17,9 +17,9 @@ export const projects = [
     title: "Modeling calcium dynamics and spike timing",
     group: "Independent project",
     question: "When the same fluorescence transient is compatible with several spike trains, which event times should a model report?",
-    approach: "I study how a spike train gives rise to a fluorescence trace, including the rise and decay of the indicator response. Building on that work, I’m developing my own machine-learning model to infer spike counts and event times from fluorescence. Several closely spaced spikes can merge into a single optical transient.",
+    approach: "Several closely spaced spikes can merge into a single fluorescence transient. I’m developing XYBER, a model that estimates how many spikes could have occurred and uses that estimate to place individual events in time.",
     detail: "I use paired optical and electrical recordings to ask two different questions about an estimate. Did it recover the amount of activity? And did it place individual events close to the spikes recorded by the electrode?",
-    links: [{ label: "Read my calcium dynamics note", href: "/blog/calcium-dynamics-models/" }],
+    links: [{ label: "How my spike-inference model works", href: "/blog/calcium-dynamics-models/#from-a-fluorescence-trace-back-to-spike-times" }],
   },
   {
     id: "visual-memory",

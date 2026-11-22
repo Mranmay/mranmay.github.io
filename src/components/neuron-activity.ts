@@ -1,12 +1,17 @@
 import type { Cell, Point3 } from "@/data/dendrites";
 import { initNeuronGL } from "./neuron-gl";
-import { cellPigment, endpointRadii, somaAxes } from "./neuron-style";
+import {
+  cellMaterial,
+  endpointRadii,
+  focalGlow,
+  somaAxes,
+} from "./neuron-style";
 import { createPropagation, type PropagationSegment } from "./neuron-wave";
 
 const W = 640,
   H = 405;
-const initialYaw = -0.15,
-  initialPitch = 0.1;
+const initialYaw = -0.23,
+  initialPitch = 0.19;
 function camera(yaw: number, pitch: number) {
   const a = Math.cos(yaw),
     b = Math.sin(yaw),
@@ -27,7 +32,7 @@ function camera(yaw: number, pitch: number) {
 }
 
 function brightness(z: number) {
-  return Math.max(0.17, Math.exp(-0.006 * Math.max(0, 116 - z)));
+  return Math.min(1, Math.max(0.33, Math.exp(-0.0046 * Math.max(0, 105 - z))));
 }
 function colorAt(rgb: number[], factor: number) {
   return (
@@ -64,6 +69,7 @@ function prepare(cell: Cell) {
     r1: number;
     r2: number;
     axon: boolean;
+    proximal: boolean;
   }[] = [];
   const seen = new Set<string>();
   for (const branch of branches) {
@@ -82,7 +88,9 @@ function prepare(cell: Cell) {
       const rate =
         (branch.axon ? 1.65 : 0.96) *
         Math.max(0.65, Math.min(1.45, Math.sqrt((r1 + r2) / 0.6)));
-      edges.push({ a, b, length: distance / rate, r1, r2, axon: branch.axon });
+      const proximal = !branch.axon && r1 + r2 > 0.85 &&
+        Math.hypot(p.x - cell.soma.x, p.y - cell.soma.y, p.z - cell.soma.z) < 42;
+      edges.push({ a, b, length: distance / rate, r1, r2, axon: branch.axon, proximal });
       neighbors[a].push(b);
       neighbors[b].push(a);
     }
@@ -123,7 +131,8 @@ function prepare(cell: Cell) {
       length: distances[distances.length - 1],
     });
   }
-  const pigment = cellPigment(cell.color),
+  const material = cellMaterial(cell),
+    pigment = material.pigment,
     shape = somaAxes(cell);
   const axisTip = {
     x: cell.soma.x + shape.axis.x * cell.radius,
@@ -179,6 +188,8 @@ function prepare(cell: Cell) {
     cell,
     triangles,
     surfaceRadius,
+    material,
+    glowSites: material.emission ? focalGlow(cell).sites : [],
     pigment,
     color: colorAt(pigment, 1),
     shape,
@@ -208,9 +219,20 @@ function halo(color: string) {
   sprite.width = sprite.height = 64;
   const c = sprite.getContext("2d")!;
   const grad = c.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, color);
-  grad.addColorStop(0.14, color);
-  grad.addColorStop(1, color.replace("rgb(", "rgba(").replace(")", ",0)"));
+  const alpha = (v: number) =>
+    color.replace("rgb(", "rgba(").replace(")", "," + v + ")");
+  for (const t of [0, 0.12, 0.25, 0.4, 0.56, 0.72, 0.86, 1]) {
+    const q = t * 3.6;
+    grad.addColorStop(
+      t,
+      alpha(
+        t === 1
+          ? 0
+          : (0.26 * Math.exp(-0.5 * q * q) + 0.05 * Math.exp(-0.16 * q * q)) /
+              0.31,
+      ),
+    );
+  }
   c.fillStyle = grad;
   c.fillRect(0, 0, 64, 64);
   return sprite;
@@ -225,11 +247,26 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const ctx = context;
   let gpu = initNeuronGL(glCanvas, cells);
   figure.classList.toggle("with-gpu", Boolean(gpu));
+  // Keep the full depth-rendered, theme-matched surface beneath live tracings on
+  // devices without WebGL. A drag switches to interactive software geometry.
+  let posterActive = !gpu;
+  figure.classList.toggle("poster-active", posterActive);
   const playback = figure.querySelector<HTMLButtonElement>(".playback")!;
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
   const neurons = cells.map(prepare);
   const sorted = neurons.slice();
-  const halos = new Map(neurons.map((n) => [n.color, halo(n.color)]));
+  const halos = new Map<string, HTMLCanvasElement>();
+  let lightTheme = document.documentElement.dataset.theme === "light";
+  const featured = neurons.filter((n) => n.material.emission > 0);
+  function applyMaterials() {
+    halos.clear();
+    for (const n of neurons) {
+      n.pigment = lightTheme ? n.material.lightPigment : n.material.pigment;
+      n.color = colorAt(n.pigment, 1);
+      if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
+    }
+  }
+  applyMaterials();
   let waves: Wave[] = [];
   let stillWave: Wave | null = null;
   let stillTimer = 0;
@@ -252,6 +289,10 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   let dragging = false;
   const background = document.createElement("canvas");
   const buffer = background.getContext("2d", { alpha: false })!;
+  const scattering = [2, 6, 25].map((divisor) => {
+    const layer = document.createElement("canvas");
+    return { divisor, layer, pen: layer.getContext("2d", { alpha: false })! };
+  });
   let lastYaw = NaN,
     lastPitch = NaN;
 
@@ -268,8 +309,9 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     const shaft = project(neuron.axisTip),
       base = neuron.projected[neuron.somaIndex];
     if (neuron.triangles.length) {
-      const faces = new Map<number, Path2D>(),
-        fog = brightness(base.z);
+      const faces = new Map<number, Path2D>();
+      const silhouette = new Path2D(),
+        fog = brightness(base.z) ** (0.8 - 0.18 * neuron.material.emission);
       const ca = Math.cos(lastYaw),
         sa = Math.sin(lastYaw),
         cb = Math.cos(lastPitch),
@@ -282,7 +324,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
           z = cb * depth + sb * n.y;
         const side = z >= 0 ? 1 : -1;
         const light = Math.max(0, (-0.46 * x - 0.55 * y + 0.7 * z) * side);
-        const tone = Math.round((0.37 + 0.83 * light) * 10);
+        const tone = Math.round((0.61 + 0.55 * light) * 10);
         const key = (side > 0 ? 20 : 0) + tone;
         let face = faces.get(key);
         if (!face) {
@@ -296,12 +338,40 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         face.lineTo(b.x, b.y);
         face.lineTo(c.x, c.y);
         face.closePath();
+        if (side > 0) {
+          silhouette.moveTo(a.x, a.y);
+          silhouette.lineTo(b.x, b.y);
+          silhouette.lineTo(c.x, c.y);
+          silhouette.closePath();
+        }
       }
+      const r = neuron.cell.radius * base.size * 1.28;
+      const wash = buffer.createRadialGradient(
+        base.x - 0.38 * r, base.y - 0.44 * r, 0, base.x, base.y, 1.6 * r,
+      );
+      wash.addColorStop(0, surfaceInk(neuron.pigment, 1.17, fog));
+      wash.addColorStop(0.52, surfaceInk(neuron.pigment, 0.97, fog));
+      wash.addColorStop(1, surfaceInk(neuron.pigment, 0.54, fog));
       buffer.globalAlpha = 1;
+      buffer.fillStyle = wash;
+      buffer.fill(silhouette);
+      buffer.globalAlpha = 0.64;
       for (const key of Array.from(faces.keys()).sort((a, b) => a - b)) {
-        buffer.fillStyle = colorAt(neuron.pigment, ((key % 20) * fog) / 10);
+        const substrate = lightTheme ? 255 : 0;
+        buffer.fillStyle =
+          "rgb(" +
+          neuron.pigment
+            .map((c) =>
+              Math.round(
+                substrate * (1 - fog) +
+                  fog * Math.min(255, (c * (key % 20)) / 10),
+              ),
+            )
+            .join(",") +
+          ")";
         buffer.fill(faces.get(key)!);
       }
+      buffer.globalAlpha = 1;
       return;
     }
     const radius = neuron.cell.radius * base.size;
@@ -336,12 +406,66 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     );
     buffer.fill();
   }
+  function paintLocalLight() {
+    for (const n of featured) {
+      for (const [point, sigma, power] of n.glowSites) {
+        const p = project(point),
+          dia = 7.2 * sigma * p.size;
+        const t = Math.max(0, Math.min(1, (p.z + 120) / 240));
+        const atmosphere = 0.68 + 0.32 * t * t * (3 - 2 * t);
+        buffer.globalAlpha =
+          0.095 *
+          atmosphere *
+          n.material.emission *
+          power *
+          (lightTheme ? 0.76 : 1);
+        buffer.drawImage(
+          halos.get(n.color)!,
+          p.x - dia / 2,
+          p.y - dia / 2,
+          dia,
+          dia,
+        );
+      }
+    }
+    buffer.globalAlpha = 1;
+  }
+  function scatterLight() {
+    const { width, height } = background;
+    // Sample one untouched, depth-composited frame at three optical scales.
+    for (const { layer, pen } of scattering) {
+      pen.imageSmoothingQuality = "high";
+      pen.drawImage(background, 0, 0, layer.width, layer.height);
+    }
+    buffer.save();
+    buffer.setTransform(1, 0, 0, 1, 0, 0);
+    buffer.imageSmoothingQuality = "high";
+    for (const { layer, divisor } of scattering) {
+      if (divisor === 2) {
+        buffer.globalCompositeOperation = "source-over";
+        buffer.globalAlpha = lightTheme ? 0.26 : 0.46;
+      } else {
+        buffer.globalCompositeOperation = lightTheme ? "multiply" : "screen";
+        buffer.globalAlpha = (divisor === 6 ? 0.23 : 0.18) * (lightTheme ? 0.5 : 1);
+      }
+      buffer.drawImage(layer, 0, 0, width, height);
+    }
+    buffer.restore();
+  }
+  function surfaceInk(pigment: number[], light: number, depth: number) {
+    const matte = lightTheme ? 255 : 0;
+    return "rgb(" + pigment.map(c => Math.round(
+      matte + (Math.min(255, c * light) - matte) * depth,
+    )).join(",") + ")";
+  }
   function drawFallback() {
     // Depth slices put distant crossings behind nearby surfaces. Each cell/slice
     // batches its tapered silhouettes and the directional highlights of thick trunks.
     type Slice = {
       neuron: Neuron;
+      fibers: Path2D;
       body: Path2D;
+      trunk: Path2D;
       facet: Path2D;
       hasSoma: boolean;
     };
@@ -356,7 +480,9 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       if (!s) {
         s = {
           neuron: n,
+          fibers: new Path2D(),
           body: new Path2D(),
+          trunk: new Path2D(),
           facet: new Path2D(),
           hasSoma: false,
         };
@@ -364,28 +490,48 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       }
       return s;
     }
+    const xMin = -offsetX / scale - 3,
+      xMax = (canvas.width - offsetX) / scale + 3;
+    const yMin = -offsetY / scale - 3,
+      yMax = (canvas.height - offsetY) / scale + 3;
     for (const n of neurons) {
       locate(n);
-      slice(n, n.projected[n.somaIndex].z).hasSoma = true;
+      const soma = n.projected[n.somaIndex],
+        sr = n.surfaceRadius * soma.size;
+      if (
+        soma.x + sr >= xMin &&
+        soma.x - sr <= xMax &&
+        soma.y + sr >= yMin &&
+        soma.y - sr <= yMax
+      )
+        slice(n, soma.z).hasSoma = true;
       for (const e of n.edges) {
         const a = n.projected[e.a],
           b = n.projected[e.b];
+        if (
+          (a.x < xMin && b.x < xMin) ||
+          (a.x > xMax && b.x > xMax) ||
+          (a.y < yMin && b.y < yMin) ||
+          (a.y > yMax && b.y > yMax)
+        )
+          continue;
         const dx = b.x - a.x,
           dy = b.y - a.y,
           d = Math.hypot(dx, dy);
         if (d < 0.001) continue;
         const nx = -dy / d,
           ny = dx / d;
-        const r1 = Math.max(0.26 / scale, e.r1 * a.size * fiberScale),
-          r2 = Math.max(0.26 / scale, e.r2 * b.size * fiberScale);
+        const caliber = e.axon ? 1 : 1.18 + 0.14 * n.material.emission;
+        const r1 = Math.max(0.25 / scale, e.r1 * a.size * fiberScale * caliber),
+          r2 = Math.max(0.25 / scale, e.r2 * b.size * fiberScale * caliber);
         const s = slice(n, (a.z + b.z) * 0.5);
-        const body = s.body;
+        const body = e.axon ? s.fibers : e.proximal ? s.trunk : s.body;
         body.moveTo(a.x + nx * r1, a.y + ny * r1);
         body.lineTo(b.x + nx * r2, b.y + ny * r2);
         body.lineTo(b.x - nx * r2, b.y - ny * r2);
         body.lineTo(a.x - nx * r1, a.y - ny * r1);
         body.closePath();
-        if (Math.max(r1, r2) * scale < 0.65) continue;
+        if (e.axon || Math.max(r1, r2) * scale < 0.65) continue;
         const face = (nx + ny > 0 ? -1 : 1) * 0.55;
         const tip = s.facet;
         tip.moveTo(a.x + nx * r1 * face, a.y + ny * r1 * face);
@@ -395,14 +541,20 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         tip.closePath();
       }
     }
+    paintLocalLight();
     bins.forEach((bin, i) => {
       const depth = brightness(-165 + i * 30);
       for (const s of bin.values()) {
-        buffer.globalAlpha = depth * 0.91;
-        buffer.fillStyle = colorAt(s.neuron.pigment, 0.84);
+        const emission = s.neuron.material.emission;
+        buffer.globalAlpha = 1;
+        buffer.fillStyle = surfaceInk(s.neuron.pigment, 0.72, depth * (0.47 + 0.25 * depth));
+        buffer.fill(s.fibers);
+        buffer.fillStyle = surfaceInk(s.neuron.pigment, 0.72 + 0.10 * emission, depth);
         buffer.fill(s.body);
-        buffer.globalAlpha = depth * 0.64;
-        buffer.fillStyle = colorAt(s.neuron.pigment, 1.25);
+        buffer.fillStyle = surfaceInk(s.neuron.pigment, 1.04 + 0.09 * emission, depth ** 0.66);
+        buffer.fill(s.trunk);
+        buffer.globalAlpha = 0.7;
+        buffer.fillStyle = surfaceInk(s.neuron.pigment, 1.07, depth);
         buffer.fill(s.facet);
         if (s.hasSoma) somaSurface(s.neuron);
       }
@@ -410,8 +562,8 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     buffer.globalAlpha = 1;
   }
   function geometry(force = false) {
-    const a = yaw + Math.sin(autoTime * 0.095) * 0.21,
-      b = pitch + Math.sin(autoTime * 0.072) * 0.09;
+    const a = yaw + Math.sin(autoTime * 0.11) * 0.21,
+      b = pitch + Math.sin(autoTime * 0.072) * 0.1;
     // Reuse the projected layer when slow camera drift moves it by less than a pixel.
     if (
       !force &&
@@ -423,27 +575,41 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     lastPitch = b;
     project = camera(a, b);
     epoch++;
+    if (posterActive) return;
     if (gpu) {
-      gpu.draw(a, b, scale, offsetX, offsetY, fiberScale);
+      gpu.draw(a, b, scale, offsetX, offsetY, fiberScale, lightTheme);
       return;
     }
     buffer.setTransform(1, 0, 0, 1, 0, 0);
     buffer.globalAlpha = 1;
-    buffer.fillStyle = "#040406";
+    buffer.fillStyle = lightTheme ? "#fff" : "#000";
     buffer.fillRect(0, 0, background.width, background.height);
     buffer.setTransform(scale, 0, 0, scale, offsetX, offsetY);
     drawFallback();
+    scatterLight();
   }
-  function pulse(neuron: Neuron, signalIndex: number, time: number) {
-    if (!neuron.signals.length) return;
-    const signal = neuron.signals[signalIndex % neuron.signals.length];
-    if (!signal) return;
-    pulses.push({
-      neuron,
-      signal,
-      born: time,
-      duration: Math.max(0.37, Math.min(1.75, signal.length / 142)),
-    });
+  function pulseVisibleArbor() {
+    const rect = canvas.getBoundingClientRect();
+    const top = Math.max(0, (stimulus.getBoundingClientRect().top - rect.top) / rect.height);
+    const portrait = top > 0.15;
+    const pool = cycle % 4 === 3 ? neurons : featured;
+    for (let i = 0; i < pool.length; i++) {
+      const neuron = pool[(cycle * 19 + i * 7 + 2) % pool.length];
+      const signal = neuron.signals[cycle % neuron.signals.length];
+      if (!signal) continue;
+      const j = Math.floor((signal.points.length - 1) * (0.33 + 0.3 * ((cycle % 3) / 2)));
+      const sample = project(neuron.points[signal.points[j]]);
+      const x = (offsetX + scale * sample.x) / canvas.width;
+      const y = (offsetY + scale * sample.y) / canvas.height;
+      if (x < (portrait ? 0.06 : 0.43) || x > 0.94 ||
+          y < top + 0.06 || y > top + (portrait ? 0.31 : 0.83)) continue;
+      const duration = Math.max(0.56, Math.min(2.3, signal.length / 112));
+      pulses.push({
+        neuron, signal, duration,
+        born: clock - duration * signal.distances[j] / signal.length,
+      });
+      break;
+    }
   }
   function at(neuron: Neuron, signal: Signal, distance: number) {
     let i = 1;
@@ -467,7 +633,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   function paint() {
     geometry();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (gpu) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (gpu || posterActive) ctx.clearRect(0, 0, canvas.width, canvas.height);
     else ctx.drawImage(background, 0, 0);
     ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
     pulses = pulses.filter((p) => clock - p.born <= p.duration);
@@ -503,7 +669,12 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         ctx.stroke();
       }
       stroke(14, 2.55, p.neuron.color, 0.47);
-      stroke(7.5, 1.15, "#f9e5bc", 0.95);
+      stroke(
+        7.5,
+        1.15,
+        lightTheme ? "#885a33" : "#f9e5bc",
+        p.neuron.material.emission ? 0.92 : 0.48,
+      );
       ctx.globalAlpha = 1;
     }
     waves = waves.filter((w) => (clock - w.born) * w.speed < w.extent + 37);
@@ -557,9 +728,21 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       ctx.lineWidth = width;
       ctx.stroke();
     }
-    band(radius - trail, radius, core + 3.2, 0.22 * attenuation, "#ecc487");
-    band(radius - 17, radius, core + 0.7, 0.93 * attenuation, "#edc996");
-    band(radius - 7.5, radius, core * 0.68, attenuation, "#fffae6");
+    band(radius - trail, radius, core + 5, 0.25 * attenuation, ink);
+    band(
+      radius - 17,
+      radius,
+      core + 1.1,
+      0.97 * attenuation,
+      lightTheme ? "#aa6338" : "#ffe4a5",
+    );
+    band(
+      radius - 8.5,
+      radius,
+      core * 0.82,
+      attenuation,
+      lightTheme ? "#663751" : "#fffbea",
+    );
     if (radius < 38 || stillWave === w) {
       const intensity = stillWave === w ? 1 : Math.max(0, 1 - radius / 38);
       const size = 13 + radius * 0.08;
@@ -576,7 +759,7 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         );
       }
       ctx.globalAlpha = intensity;
-      ctx.fillStyle = "#fff9d6";
+      ctx.fillStyle = lightTheme ? "#693b48" : "#fff9d6";
       ctx.beginPath();
       ctx.arc(x, y, core * 0.61, 0, Math.PI * 2);
       ctx.fill();
@@ -595,18 +778,11 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     drawn = time;
     clock += dt;
     const auto = !paused && !motion.matches;
-    if (auto && !dragging) autoTime += dt;
+    if (auto && !dragging && !posterActive) autoTime += dt;
     if (auto && clock >= ambient) {
-      const neuron = neurons[(cycle * 19 + 23) % neurons.length];
-      pulse(neuron, cycle, clock - (cycle === 0 ? 0.2 : 0));
-      if (cycle % 7 === 2)
-        pulse(
-          neurons[(cycle * 17 + 5) % neurons.length],
-          cycle + 1,
-          clock + 0.12,
-        );
+      pulseVisibleArbor();
       cycle++;
-      ambient = clock + 0.47 + 0.36 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
+      ambient = clock + 0.48 + 0.19 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
     }
     paint();
     if (auto) frame = requestAnimationFrame(tick);
@@ -656,12 +832,18 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       } else {
         background.width = w;
         background.height = h;
+        for (const { layer, divisor } of scattering) {
+          layer.width = Math.max(1, Math.ceil(w / divisor));
+          layer.height = Math.max(1, Math.ceil(h / divisor));
+        }
       }
-      scale = Math.max(w / W, h / H);
-      offsetX =
-        (w - scale * W) / 2 +
-        (matchMedia("(min-width:761px)").matches ? w * 0.08 : 0);
-      offsetY = (h - scale * H) / 2;
+      const style = getComputedStyle(figure);
+      const portraitZoom = parseFloat(style.getPropertyValue("--portrait-zoom")) || 1;
+      const cover = Math.max(w / W, h / H) * portraitZoom;
+      const position = parseFloat(style.getPropertyValue("--poster-position")) / 100 || 0.5;
+      scale = cover * 1.05;
+      offsetX = w / 2 - 318 * scale + (position - 0.5) * (w - cover * W);
+      offsetY = h / 2 - 189 * scale;
       geometry(true);
       paint();
     }
@@ -693,71 +875,62 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     }
     return front;
   }
-  function choose(point?: { x: number; y: number }) {
+  function choose(point: { x: number; y: number }) {
     let hit: Hit | undefined;
-    if (point) {
-      let best = Infinity,
-        front = -Infinity,
-        covered = false;
-      for (const neuron of sorted) {
-        locate(neuron);
-        let localDistance = Infinity,
-          localIndex = 0,
-          localFraction = 0;
-        for (let i = 0; i < neuron.edges.length; i++) {
-          const edge = neuron.edges[i];
-          const a = neuron.projected[edge.a],
-            b = neuron.projected[edge.b];
-          const dx = b.x - a.x,
-            dy = b.y - a.y;
-          const f = Math.max(
-            0,
-            Math.min(
-              1,
-              ((point.x - a.x) * dx + (point.y - a.y) * dy) /
-                (dx * dx + dy * dy || 1),
-            ),
-          );
-          const sx = point.x - a.x - f * dx,
-            sy = point.y - a.y - f * dy;
-          const center = Math.hypot(sx, sy);
-          const depth = a.z + f * (b.z - a.z);
-          const r =
-            (edge.r1 + f * (edge.r2 - edge.r1)) *
-            (a.size + f * (b.size - a.size));
-          const inside = center <= r;
-          if (center < localDistance) {
-            localDistance = center;
-            localIndex = i;
-            localFraction = f;
-          }
-          if (
-            (inside && (!covered || depth > front)) ||
-            (!covered && !inside && center - r < best)
-          ) {
-            covered = inside;
-            front = depth;
-            best = center - r;
-            hit = { neuron, edgeIndex: i, fraction: f };
-          }
+    let best = Infinity,
+      front = -Infinity,
+      covered = false;
+    for (const neuron of sorted) {
+      locate(neuron);
+      let localDistance = Infinity,
+        localIndex = 0,
+        localFraction = 0;
+      for (let i = 0; i < neuron.edges.length; i++) {
+        const edge = neuron.edges[i];
+        const a = neuron.projected[edge.a],
+          b = neuron.projected[edge.b];
+        const dx = b.x - a.x,
+          dy = b.y - a.y;
+        const f = Math.max(
+          0,
+          Math.min(
+            1,
+            ((point.x - a.x) * dx + (point.y - a.y) * dy) /
+              (dx * dx + dy * dy || 1),
+          ),
+        );
+        const sx = point.x - a.x - f * dx,
+          sy = point.y - a.y - f * dy;
+        const center = Math.hypot(sx, sy);
+        const depth = a.z + f * (b.z - a.z);
+        const r =
+          (edge.r1 + f * (edge.r2 - edge.r1)) *
+          (a.size + f * (b.size - a.size)) * fiberScale *
+          (edge.axon ? 1 : 1.18 + 0.14 * neuron.material.emission);
+        const inside = center <= r;
+        if (center < localDistance) {
+          localDistance = center;
+          localIndex = i;
+          localFraction = f;
         }
-        // A membrane can obscure a crossing from a different cell. Use the
-        // foreground surface and stimulate the closest traced cable it encloses.
-        const meshDepth = surfaceDepth(neuron, point);
-        if (meshDepth > front && Number.isFinite(localDistance)) {
-          front = meshDepth;
-          covered = true;
-          hit = { neuron, edgeIndex: localIndex, fraction: localFraction };
+        if (
+          (inside && (!covered || depth > front)) ||
+          (!covered && !inside && center - r < best)
+        ) {
+          covered = inside;
+          front = depth;
+          best = center - r;
+          hit = { neuron, edgeIndex: i, fraction: f };
         }
       }
-    } else {
-      const neuron = neurons[(cycle++ * 13 + 3) % neurons.length];
-      if (neuron.edges.length)
-        hit = {
-          neuron,
-          edgeIndex: Math.floor(neuron.edges.length * 0.48),
-          fraction: 0.5,
-        };
+      // A membrane can obscure a crossing from a different cell. Use the
+      // foreground surface and stimulate the closest traced cable it encloses.
+      const meshDepth = surfaceDepth(neuron, point);
+      if (meshDepth > front && Number.isFinite(localDistance)) {
+        front = meshDepth;
+        covered = true;
+        hit = { neuron, edgeIndex: localIndex, fraction: localFraction };
+      }
     }
     if (!hit) return;
     const segments = createPropagation(
@@ -807,6 +980,10 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       return;
     if (!dragging) {
       dragging = true;
+      if (posterActive) {
+        posterActive = false;
+        figure.classList.remove("poster-active");
+      }
       stimulus.setPointerCapture(e.pointerId);
     }
     yaw = down.a + dx * 0.007;
@@ -825,9 +1002,20 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   });
   stimulus.addEventListener("lostpointercapture", release);
   stimulus.addEventListener("click", (e) => {
-    if (e.detail === 0) return choose();
-    if (moved) return;
     const r = canvas.getBoundingClientRect();
+    if (e.detail === 0) {
+      const index = cycle++;
+      const top = Math.max(0, (stimulus.getBoundingClientRect().top - r.top) / r.height);
+      const y = top + (1 - top) * (0.4 + 0.16 * Math.cos(index * 1.71));
+      return choose({
+        x:
+          (canvas.width * (0.6 + 0.19 * Math.sin(index * 2.27)) - offsetX) /
+          scale,
+        y: (canvas.height * y - offsetY) / scale,
+      });
+    }
+    if (moved) return;
+    if (e.clientY < r.top || e.clientY > r.bottom) return;
     choose({
       x: (((e.clientX - r.left) * canvas.width) / r.width - offsetX) / scale,
       y: (((e.clientY - r.top) * canvas.height) / r.height - offsetY) / scale,
@@ -836,6 +1024,17 @@ export function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   playback.addEventListener("click", () => {
     paused = !paused;
     resetTiming();
+  });
+  new MutationObserver(() => {
+    const next = document.documentElement.dataset.theme === "light";
+    if (next === lightTheme) return;
+    lightTheme = next;
+    applyMaterials();
+    geometry(true);
+    paint();
+  }).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-theme"],
   });
   motion.addEventListener("change", resetTiming);
   document.addEventListener("visibilitychange", resetTiming);

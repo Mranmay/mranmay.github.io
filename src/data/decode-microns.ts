@@ -70,6 +70,7 @@ export function decodeMicrons(records: readonly PackedCell[]): Cell[] {
     )
       throw new Error("Unexpected MICrONS geometry");
     return {
+      id,
       soma,
       radius,
       color,

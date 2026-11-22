@@ -16,15 +16,13 @@ import { paperFigures } from "@/data/paperFigures";
       const [before, after] = paper.authors.split(FULL_NAME);
       return (
         <li>
-          <figure>
-            <a href={paper.href} class="paper-image" aria-label={`Read ${paper.title}`}>
-              <img src={figure.src} alt={figure.alt} width={figure.width} height={figure.height} loading="lazy" decoding="async" />
+          <figure itemscope itemtype="https://schema.org/ImageObject">
+            <meta itemprop="creditText" content={figure.credit} />
+            <link itemprop="license" href={figure.license.url} />
+            {"photoCredits" in figure && <link itemprop="citation" href={figure.photoCredits} />}
+            <a href={figure.source} itemprop="isBasedOn" class="paper-image" aria-label={`View the original figure from ${paper.title}`} title={`${figure.credit} · ${figure.license.label}`}>
+              <img itemprop="contentUrl" src={figure.src} alt={figure.alt} width={figure.width} height={figure.height} loading="lazy" decoding="async" />
             </a>
-            <figcaption>
-              <a href={figure.source}>{figure.credit}</a>
-              <span aria-hidden="true"> · </span><a href={figure.license.url}>{figure.license.label}</a>
-              {"photoCredits" in figure && <><span aria-hidden="true"> · </span><a href={figure.photoCredits}>Photo credit</a></>}
-            </figcaption>
           </figure>
           <div class="paper-citation">
             <p class="paper-meta">{paper.venue} <span>·</span> {paper.year}</p>
@@ -68,12 +66,6 @@ import { paperFigures } from "@/data/paperFigures";
     height: 100%;
     min-height: 0;
     object-fit: contain;
-  }
-  figcaption {
-    margin: .3rem 0 0;
-    font-size: .78rem;
-    line-height: 1.35;
-    color: var(--muted);
   }
   .paper-meta {
     color: var(--accent);

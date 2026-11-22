@@ -2,6 +2,7 @@
 title: "Calcium Dynamics Models: From Spikes to Fluorescence"
 description: "Give two models the same pair of spikes and their calcium traces can look quite different. A five-frame example shows why."
 pubDate: 2026-03-23
+updatedDate: 2026-11-20
 author: Mranmay Shetty
 tags: ["Calcium imaging", "Dynamical systems"]
 ---
@@ -55,3 +56,17 @@ I would first compare an isolated electrical spike with its optical transient. T
 This distinction matters when going backwards to estimate spikes. In the noiseless linear model, subtracting $\gamma c_{t-1}$ from $c_t$ recovers the new input. With the wrong decay, some signal from an earlier spike survives that subtraction. With finite rise, a spike contributes to the rise over several frames. A plausible-looking reconstructed fluorescence trace can therefore coexist with a poorly timed spike estimate. Paired recordings let me check both.
 
 [Read the Allen calibration study](https://pubmed.ncbi.nlm.nih.gov/33683198/) · [Read about exponential decay and finite rise times](https://pmc.ncbi.nlm.nih.gov/articles/PMC4881387/)
+
+## From a fluorescence trace back to spike times
+
+I’m developing XYBER independently to work in the other direction. Given a stretch of fluorescence, my model estimates how many spikes could have occurred in each frame. Several spike trains can be consistent with one optical signal. I use those possibilities to choose a single set of event times, which I can then compare with the electrical recording.
+
+<figure>
+  <a href="/images/posts/calcium-dynamics-models/xyber-architecture.webp"><img src="/images/posts/calcium-dynamics-models/xyber-architecture.webp" width="1440" height="484" loading="lazy" decoding="async" alt="Diagram showing fluorescence and recording features entering XYBER, which estimates spike counts and selects event times from sampled trains." /></a>
+  <figcaption>My model uses an eight-second fluorescence window to report a firing rate and individual event times for the middle four seconds.</figcaption>
+</figure>
+
+<figure>
+  <a href="/images/posts/calcium-dynamics-models/xyber-examples.webp"><img src="/images/posts/calcium-dynamics-models/xyber-examples.webp" width="1440" height="947" loading="lazy" decoding="async" alt="Two fluorescence traces above their electrically recorded spike times and the events inferred by XYBER and three other methods." /></a>
+  <figcaption>Two example recordings. Read down each column from the measured fluorescence to the electrode’s spike times, then to the events each model inferred.</figcaption>
+</figure>
