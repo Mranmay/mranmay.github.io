@@ -1,67 +1,51 @@
 ---
 import type { CollectionEntry } from "astro:content";
-import FormattedDate from "@/components/Date.astro";
+import DateLabel from "@/components/Date.astro";
 import Layout from "@/layouts/Layout.astro";
 import "katex/dist/katex.min.css";
-
 type Props = CollectionEntry<"blog">["data"];
-
-const { title, description, author, tags, pubDate, updatedDate, heroImage } =
-  Astro.props;
+const {
+  title,
+  description,
+  author,
+  pubDate,
+  updatedDate,
+  heroImage,
+  heroImageAlt,
+  tags,
+} = Astro.props;
 ---
 
-<Layout title={`${title} | Mranmay Shetty`}>
-  <article class="grid grid-cols-1 place-items-center pb-12">
-    <div class="my-10 grid w-full place-items-center overflow-x-hidden px-6">
+<Layout title={`${title} | Mranmay Shetty`} description={description}>
+  <article class="shell inner-page post-page">
+    <a class="text-link" href="/blog/">All posts</a>
+    <div class="article-heading">
+      <p class="meta">
+        <DateLabel date={pubDate} />{author && <> · {author}</>}
+      </p>
+      <h1>{title}</h1><p class="lead">{description}</p>
+      {
+        updatedDate && (
+          <p class="credit">
+            Updated <DateLabel date={updatedDate} />
+          </p>
+        )
+      }
+      {
+        tags?.length && (
+          <ul class="tags">
+            {tags.map((tag) => (
+              <li>{tag}</li>
+            ))}
+          </ul>
+        )
+      }
       {
         heroImage && (
-          <img
-            src={heroImage}
-            alt=""
-            class="max-h-[70vh] rounded-md border border-white/10 object-contain"
-          />
+          <img class="post-cover" src={heroImage} alt={heroImageAlt ?? ""} />
         )
       }
     </div>
-    <div
-      class="blog-content prose prose-invert prose-neutral w-full !max-w-[90vw] overflow-x-hidden !break-words px-4 prose-headings:font-terminal prose-headings:font-normal prose-p:leading-8 prose-a:text-white prose-a:underline prose-blockquote:border-white/30 prose-blockquote:text-white/70 prose-hr:border-white/15 prose-img:mx-auto prose-img:my-10 prose-img:rounded-md prose-img:border prose-img:border-white/10 prose-img:object-contain prose-pre:rounded-md prose-pre:border prose-pre:border-white/10 md:px-0 md:!max-w-3xl"
-    >
-      <div>
-        <div>
-          <p class="font-terminal text-sm text-white/55">
-            <FormattedDate date={pubDate} />
-          </p>
-          {
-            updatedDate && (
-              <div class="font-terminal mt-1 text-sm text-white/45">
-                Last updated on <FormattedDate date={updatedDate} />
-              </div>
-            )
-          }
-        </div>
-        <h1 class="font-terminal">{title}</h1>
-        <p class="!mt-4 text-lg leading-8 text-white/70">{description}</p>
-        {
-          author && (
-            <p class="font-terminal !mt-3 text-sm text-white/45">
-              By {author}
-            </p>
-          )
-        }
-        {
-          tags && tags.length > 0 && (
-            <ul class="!mt-5 flex list-none flex-wrap gap-2 !p-0">
-              {tags.map((tag) => (
-                <li class="font-terminal rounded-none border border-white/25 px-2 py-1 text-xs text-white/60">
-                  {tag}
-                </li>
-              ))}
-            </ul>
-          )
-        }
-        <hr />
-      </div>
-      <slot />
-    </div>
+    <div class="article-body"><slot /></div>
   </article>
 </Layout>

@@ -1,5 +1,4 @@
 ---
-import { ClientRouter } from "astro:transitions";
 import "@/styles/global.css";
 import { SITE_DESCRIPTION, SITE_TITLE } from "@/consts";
 
@@ -30,14 +29,7 @@ const imageURL = new URL(image, site);
 <meta name="generator" content={Astro.generator} />
 <link rel="sitemap" href="/sitemap-index.xml" />
 
-<!-- Font preloads -->
-<link
-  rel="preload"
-  href="/fonts/VCRosdNEUE.ttf"
-  as="font"
-  type="font/ttf"
-  crossorigin
-/>
+<link rel="alternate" type="application/rss+xml" title="Mranmay Shetty’s blog" href="/rss.xml" />
 
 <!-- Canonical URL -->
 <link rel="canonical" href={canonicalURL.href} />
@@ -60,6 +52,3 @@ const imageURL = new URL(image, site);
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={imageURL.href} />
-
-<!-- View Transitions  -->
-<ClientRouter />

@@ -1,38 +1,26 @@
 ---
-import AsciiBrain from "@/components/AsciiBrain.astro";
-import { FULL_NAME, QUOTE } from "@/consts";
-
-const [firstName, ...restNameParts] = FULL_NAME.split(" ");
-const restName = restNameParts.join(" ");
+import NeuronExplorer from "./NeuronExplorer.astro";
 ---
 
-<div class="hero-bg hidden md:block h-screen hero-bg-animate absolute top-0">
-</div>
-<section class="home-hero !z-[20] relative w-full" id="hero">
-  <div class="home-hero-copy">
-    <div class="home-hero-title-block">
-      <h1 class="home-hero-title font-bold">
-        <span class="home-hero-title-line">{`<${firstName} `}</span>
-        <span class="home-hero-title-line">{`${restName} />`}</span>
-      </h1>
-      <h2 class="home-hero-subtitle opacity-95">
-        {QUOTE}
-      </h2>
+<section class="hero">
+  <div class="shell hero-inner">
+    <div class="hero-copy">
+      <p class="discipline">Computational neuroscience</p>
+      <h1>Mranmay <em>Shetty</em></h1>
+      <p class="hero-intro">
+        I study how visual circuits encode what we see and how we remember it.
+      </p>
+      <p class="hero-bio">
+        I’ve worked with Federico Rossi on visual cortex, Gabriel Kreiman on
+        working memory, and Laurent Perrinet and Bruno Cessac on spike
+        inference. With Bruno, I also explored models of the retina.
+      </p>
+      <div class="hero-links">
+        <a class="button solid" href="/research/">Explore research</a><a
+          class="button quiet"
+          href="/cv/">View CV</a>
+      </div>
     </div>
-  </div>
-  <div class="home-hero-art">
-    <AsciiBrain />
+    <NeuronExplorer />
   </div>
 </section>
-
-<script is:inline>
-  const hero_bg = document.querySelector(".hero-bg-animate");
-
-  setInterval(() => {
-    let binaryText = "";
-    for (let i = 0; i < 1000; i++) {
-      binaryText += Math.floor(Math.random() * 2).toString();
-    }
-    hero_bg.textContent = binaryText;
-  }, 300);
-</script>

@@ -3,110 +3,52 @@ import BaseHead from "@/components/BaseHead.astro";
 import Navbar from "@/components/Navbar.astro";
 import Footer from "@/components/Footer.astro";
 import { SITE_DESCRIPTION, SITE_TITLE } from "@/consts";
-
 const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
 ---
 
-<html lang="en" class="!overflow-x-hidden" data-theme="dark">
+<!doctype html>
+<html lang="en" data-theme="dark">
   <head>
     <script is:inline>
-      (() => {
-        try {
-          const saved = localStorage.getItem("theme");
-          const theme = saved === "light" || saved === "dark" ? saved : "dark";
-          document.documentElement.dataset.theme = theme;
-        } catch {
-          document.documentElement.dataset.theme = "dark";
-        }
-      })();
+      try {
+        if (localStorage.getItem("theme") === "light")
+          document.documentElement.dataset.theme = "light";
+      } catch {}
     </script>
     <BaseHead title={title} description={description} />
   </head>
-
-  <body class="tracking-wide !overflow-x-hidden">
-    <header class="fixed top-0 w-screen z-[9999]"><Navbar /></header>
-    <main class="pt-28 md:pt-20"><slot /></main>
-    <footer class="w-screen bottom-0 overflow-x-hidden"><Footer /></footer>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <header><Navbar /></header>
+    <main id="main"><slot /></main>
+    <footer><Footer /></footer>
     <script is:inline>
       (() => {
-        const STORAGE_KEY = "theme";
-
-        function getTheme() {
-          try {
-            const value = localStorage.getItem(STORAGE_KEY);
-            return value === "light" || value === "dark" ? value : "dark";
-          } catch {
-            return "dark";
-          }
+        const root = document.documentElement;
+        const button = document.getElementById("theme-toggle");
+        function apply(light) {
+          root.dataset.theme = light ? "light" : "dark";
+          button.setAttribute("aria-pressed", String(light));
         }
-
-        function updateToggle(theme) {
-          const button = document.querySelector("[data-theme-toggle]");
-          if (!button) return;
-
-          const isLight = theme === "light";
-          button.setAttribute("aria-pressed", String(isLight));
-          button.setAttribute("data-mode", theme);
-
-          const label = button.querySelector("[data-theme-toggle-label]");
-          if (label) {
-            label.textContent = isLight
-              ? "Switch to dark mode"
-              : "Switch to light mode";
-          }
-        }
-
-        function setTheme(theme) {
-          const safeTheme = theme === "light" ? "light" : "dark";
-          document.documentElement.dataset.theme = safeTheme;
+        apply(root.dataset.theme === "light");
+        button.hidden = false;
+        button.addEventListener("click", () => {
+          apply(root.dataset.theme !== "light");
           try {
-            localStorage.setItem(STORAGE_KEY, safeTheme);
+            localStorage.setItem("theme", root.dataset.theme);
           } catch {}
-          updateToggle(safeTheme);
-        }
-
-        function updateLogoState() {
-          const logo = document.getElementById("logo");
-          if (!logo) return;
-          logo.classList.toggle("is-scrolled", window.scrollY > 100);
-        }
-
-        function initThemeToggle() {
-          const theme = getTheme();
-          document.documentElement.dataset.theme = theme;
-          updateToggle(theme);
-          updateLogoState();
-
-          const button = document.querySelector("[data-theme-toggle]");
-          if (!button) return;
-
-          if (button.dataset.themeToggleBound === "true") return;
-          button.dataset.themeToggleBound = "true";
-
-          button.addEventListener("click", () => {
-            const current =
-              document.documentElement.dataset.theme === "light"
-                ? "light"
-                : "dark";
-            setTheme(current === "light" ? "dark" : "light");
-          });
-        }
-
-        window.__initThemeToggle = initThemeToggle;
-
-        if (window.__themeControllerBound !== "true") {
-          window.__themeControllerBound = "true";
-          document.addEventListener("DOMContentLoaded", initThemeToggle);
-          document.addEventListener("astro:page-load", initThemeToggle);
-          window.addEventListener("scroll", updateLogoState);
-          window.addEventListener("storage", () => {
-            const theme = getTheme();
-            document.documentElement.dataset.theme = theme;
-            updateToggle(theme);
-          });
-        }
-
-        initThemeToggle();
+        });
+        window.addEventListener("storage", (event) => {
+          if (event.key === "theme" || event.key === null)
+            apply(event.newValue === "light");
+        });
+        window.addEventListener("pageshow", (event) => {
+          if (event.persisted) {
+            try {
+              apply(localStorage.getItem("theme") === "light");
+            } catch {}
+          }
+        });
       })();
     </script>
   </body>

@@ -1,0 +1,156 @@
+---
+import type { ProjectId } from "@/data/projects";
+interface Props {
+  id: ProjectId;
+}
+const { id } = Astro.props;
+const fields = [0, 1, 2, 3, 4, 5];
+const spikeTimes = [27, 32, 73, 115, 121, 126, 184, 220, 226, 279, 292];
+const trace = Array.from({ length: 301 }, (_, t) => {
+  const signal = spikeTimes.reduce(
+    (sum, time) =>
+      sum +
+      (time > t
+        ? 0
+        : (1 - Math.exp(-(t - time) / 2.2)) * Math.exp(-(t - time) / 14)),
+    0,
+  );
+  return `${t ? "L" : "M"}${t + 10} ${(83 - 28 * signal).toFixed(1)}`;
+}).join(" ");
+---
+
+<div class:list={["project-art", id]} aria-hidden="true">
+  <svg viewBox="0 0 320 145" preserveAspectRatio="xMidYMid meet" fill="none">
+    {
+      id === "visual-cortex" && (
+        <>
+          <g stroke="currentColor" opacity=".38" stroke-width=".65">
+            <path d="M34 72h250M160 18v110" stroke-dasharray="3 4" />
+          </g>
+          {fields.map((i) => (
+            <g
+              stroke="currentColor"
+              stroke-width={i === 0 ? 1.5 : 0.9}
+              opacity={1 - i * 0.055}
+            >
+              <ellipse
+                cx="143"
+                cy="76"
+                rx={12 + i * 11.3}
+                ry={6 + i * 7.8}
+                transform="rotate(-24 143 76)"
+              />
+              <ellipse
+                cx="177"
+                cy="63"
+                rx={8 + i * 8.4}
+                ry={6 + i * 5.6}
+                transform="rotate(26 177 63)"
+                stroke-dasharray="3 2"
+              />
+            </g>
+          ))}
+          <>
+            <circle cx="143" cy="76" r="3" fill="currentColor" />
+            <circle cx="177" cy="63" r="2.5" fill="currentColor" />
+          </>
+        </>
+      )
+    }
+    {
+      id === "spike-inference" && (
+        <>
+          <g stroke="currentColor" opacity=".22">
+            {[42, 64, 85, 108].map((y) => (
+              <path d={`M10 ${y}h300`} stroke-dasharray="2 4" />
+            ))}
+          </g>
+          <path d={trace} stroke="currentColor" stroke-width="2" />
+          {spikeTimes.map((t) => (
+            <path
+              d={`M${10 + t} 103v13`}
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+          ))}
+        </>
+      )
+    }
+    {
+      id === "visual-memory" && (
+        <>
+          {[0, 1, 2].map((i) => (
+            <g transform={`translate(${49 + i * 78} ${34 + i * 4})`}>
+              <rect
+                width="62"
+                height="68"
+                rx="2"
+                stroke="currentColor"
+                stroke-width="1.1"
+              />
+              <g
+                transform={`rotate(${i === 1 ? -28 : 28} 31 34)`}
+                stroke="currentColor"
+              >
+                {[-16, -12, -8, -4, 0, 4, 8, 12, 16].map((offset) => {
+                  const half = Math.sqrt(19 * 19 - offset * offset);
+                  return (
+                    <path
+                      d={`M${31 + offset} ${34 - half}v${half * 2}`}
+                      stroke-width="1.8"
+                    />
+                  );
+                })}
+              </g>
+            </g>
+          ))}
+        </>
+      )
+    }
+    {
+      id === "retinal-computation" && (
+        <>
+          {[-2, -1, 0, 1, 2].map((y) =>
+            [-4, -3, -2, -1, 0, 1, 2, 3, 4].map((x) => (
+              <circle
+                cx={160 + x * 21 + (y % 2) * 6}
+                cy={73 + y * 20}
+                r={4 + 5 * Math.exp(-(x * x + y * y) / 5)}
+                stroke="currentColor"
+                opacity={0.95 - Math.min(0.45, (x * x + y * y) / 45)}
+              />
+            )),
+          )}
+        </>
+      )
+    }
+  </svg>
+</div>
+<style>
+  .project-art {
+    --ink: #d2c497;
+    background-color: #343729;
+    color: var(--ink);
+    overflow: hidden;
+    border-radius: 4px;
+  }
+  .spike-inference {
+    --ink: #add4c1;
+    background-color: #253d34;
+  }
+  .visual-memory {
+    --ink: #c6bedb;
+    background-color: #373442;
+  }
+  .retinal-computation {
+    --ink: #e7bcaa;
+    background-color: #483a36;
+  }
+  .project-art svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 7rem;
+    max-height: 12rem;
+  }
+</style>

@@ -1,62 +1,73 @@
 ---
-import { SITE_TITLE, NAV_LINKS as links } from "@/consts";
+import { NAV_LINKS } from "@/consts";
+const current = Astro.url.pathname.split("/")[1];
 ---
 
-<nav class="site-nav w-full !z-[9999] py-5 px-4 backdrop-blur-sm">
-  <div
-    class="w-full grid gap-4 md:px-5 place-items-center grid-cols-1 md:flex md:justify-between md:px-4"
+<div class="shell masthead">
+  <a class="wordmark" href="/" aria-label="Mranmay Shetty, home">
+    <svg
+      viewBox="0 0 32 32"
+      width="32"
+      height="32"
+      fill="none"
+      aria-hidden="true"
+    >
+      <g
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path
+          d="M4 23 11 17 16 17 20 11 27 6 M10 17 8 10 4 7 M16 17 20 23 26 26 M19 12 17 6 M20 23 20 28"
+        ></path>
+        <circle cx="16" cy="17" r="2.3" fill="currentColor"></circle>
+      </g>
+    </svg><span>Mranmay Shetty</span>
+  </a>
+  <nav aria-label="Main navigation">
+    {
+      NAV_LINKS.map(({ href, title }) => (
+        <a
+          href={href}
+          class:list={["nav-link", { "cv-link": title === "CV" }]}
+          aria-current={
+            href.split("/")[1] === current
+              ? href.replace(/\/$/, "") ===
+                Astro.url.pathname.replace(/\/$/, "")
+                ? "page"
+                : "location"
+              : undefined
+          }
+        >
+          {title}
+        </a>
+      ))
+    }
+  </nav>
+  <button
+    id="theme-toggle"
+    type="button"
+    aria-label="Toggle light theme"
+    aria-pressed="false"
+    hidden
   >
-    <a href="/">
-      <div
-        id="logo"
-        class="site-logo pt-2 pb-1 !grid !place-items-center select-none leading-none scale-110 px-4 transition-all ease-in-out"
+    <svg
+      viewBox="0 0 24 24"
+      width="19"
+      height="19"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+    >
+      <g class="sun"
+        ><circle cx="12" cy="12" r="4"></circle><path
+          d="M12 1v3m0 16v3M1 12h3m16 0h3M4 4l2 2m12 12 2 2M20 4l-2 2M6 18l-2 2"
+        ></path></g
       >
-        {SITE_TITLE}
-      </div>
-    </a>
-    <div class="site-nav-links flex flex-wrap gap-4 md:pr-5">
-      <div class="hidden md:block">/</div>
-      {
-        links.map((link) => {
-          const href =
-            link.href ?? link.title.toLowerCase().replaceAll(" ", "-");
-          const target = href.startsWith("/") ? href : `/${href}`;
-          const pathname = Astro.url.pathname.replace(
-            import.meta.env.BASE_URL,
-            "",
-          );
-          const subpath = pathname.match(/[^\/]+/g);
-          const isActive =
-            target === pathname || target === "/" + (subpath?.[0] || "");
-          return (
-            <>
-              <a
-                class:list={[{ "is-active": isActive }]}
-                class="site-nav-link transition-all ease-in-out px-2 max-w-fit"
-                href={target}
-              >
-                <div>{link.title}</div>
-              </a>
-              <div class="hidden md:block">/</div>
-            </>
-          );
-        })
-      }
-      <button
-        class="theme-toggle"
-        type="button"
-        aria-label="Toggle color scheme"
-        aria-pressed="false"
-        data-theme-toggle
-      >
-        <span class="theme-toggle-track" aria-hidden="true">
-          <span class="theme-toggle-thumb">
-            <span class="theme-toggle-moon">☾</span>
-            <span class="theme-toggle-sun">☀</span>
-          </span>
-        </span>
-        <span class="sr-only" data-theme-toggle-label>Switch theme</span>
-      </button>
-    </div>
-  </div>
-</nav>
+      <path class="moon" d="M20 15A8.5 8.5 0 0 1 9 4a8.5 8.5 0 1 0 11 11Z"
+      ></path>
+    </svg>
+  </button>
+</div>
