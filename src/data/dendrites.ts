@@ -1,4 +1,4 @@
-// Simplified dendrite skeletons, expressed in common display coordinates.
+// Simplified neuron skeletons, expressed in common display coordinates.
 export interface Point3 {
   x: number;
   y: number;

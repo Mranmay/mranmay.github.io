@@ -193,69 +193,84 @@ body > header {
   display: block;
 }
 .hero {
-  background: var(--bg);
+  position: relative;
+  isolation: isolate;
+  background: #000;
+  color: #fcfaf8;
   border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+}
+.hero > figure {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(0 0 0 / 88%) 0%, rgb(0 0 0 / 82%) 29%, rgb(0 0 0 / 66%) 46%, transparent 70%);
 }
 .hero-inner {
-  display: grid;
-  grid-template-columns: minmax(19rem, 0.84fr) minmax(0, 1.16fr);
-  grid-template-areas: "heading specimen" "details specimen";
-  align-content: center;
-  column-gap: clamp(1rem, 3vw, 3.25rem);
-  padding-block: clamp(2.8rem, 5.4vw, 6rem);
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: clamp(36rem, 77svh, 54rem);
+  padding-block: clamp(3.5rem, 6.5vw, 7rem);
 }
-.hero-heading {
-  grid-area: heading;
-  align-self: end;
+.hero-inner a {
+  pointer-events: auto;
 }
-.hero-details {
-  grid-area: details;
-  align-self: start;
+.hero h1 {
+  font-size: clamp(4.5rem, 7.7vw, 8rem);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  margin-bottom: clamp(1.1rem, 2.4vw, 2rem);
+  text-shadow: 0 2px 24px #0009;
 }
-.hero-inner > figure {
-  grid-area: specimen;
+.hero h1 em {
+  font-weight: 400;
+  color: #e6ddff;
 }
-.discipline,
+.hero-copy {
+  max-width: min(37rem, 51%);
+  color: #e2dfe2;
+  font-size: 1.025rem;
+  line-height: 1.58;
+  text-wrap: pretty;
+  text-shadow: 0 1px 4px #000;
+}
+.hero-copy p + p { margin-top: .85rem; }
+.hero-copy a {
+  color: #fff;
+  text-decoration: underline;
+  text-decoration-color: #b4a8d8;
+  text-underline-offset: .2em;
+  text-decoration-thickness: 1px;
+}
+.hero-copy a:hover { text-decoration-color: #fff; }
+.hero-intro {
+  color: #f8f6fa;
+  font-size: clamp(1.14rem, 1.48vw, 1.35rem);
+  line-height: 1.45;
+}
 .meta {
   font: 500 0.81rem/1.5 var(--mono);
 }
-.discipline {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.13em;
+.hero-links .button.solid {
+  background: #eeeafc;
+  border-color: #eeeafc;
+  color: #16121f;
 }
-.discipline::before {
-  content: "";
-  width: 1.8rem;
-  height: 1px;
-  background: var(--accent);
-}
-.hero h1 {
-  font-size: clamp(5.1rem, 7.7vw, 7.7rem);
-  line-height: 0.87;
-  letter-spacing: -0.04em;
-  margin: 1.2rem 0 1.55rem;
-}
-.hero h1 em {
-  display: block;
-  font-weight: 400;
-  color: var(--hero-name);
-}
-.hero-intro {
-  max-width: 29em;
-  font-size: clamp(1.12rem, 1.45vw, 1.35rem);
-  line-height: 1.45;
-  text-wrap: pretty;
-}
-.hero-bio {
-  margin-top: 0.9rem;
-  max-width: 34em;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.65;
+.hero-links .button.quiet {
+  color: #f6f4fa;
+  background: rgb(0 0 0 / 65%);
+  border-color: #837f8e;
 }
 .hero-links,
 .page-links {
@@ -628,30 +643,21 @@ body > footer {
   .cv-link {
     padding: 0.1rem 0.65rem;
   }
+  .hero::after {
+    background: linear-gradient(180deg, rgb(0 0 0 / 70%) 0, rgb(0 0 0 / 54%) 4.8rem, transparent 8rem, rgb(0 0 0 / 68%) 15rem, rgb(0 0 0 / 86%) 23rem, rgb(0 0 0 / 90%) 100%);
+  }
   .hero-inner {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "heading" "specimen" "details";
-    gap: 0.95rem;
-    padding-block: 1.6rem 2rem;
+    min-height: auto;
+    padding-block: 1.7rem 2.3rem;
   }
   .hero h1 {
-    font-size: clamp(3.45rem, 12.3vw, 5.75rem);
-    margin: 0.65rem 0 0.75rem;
-    line-height: 0.96;
+    font-size: clamp(3.4rem, 12.8vw, 5.6rem);
+    margin: 0 0 clamp(8rem, 22svh, 12rem);
   }
-  .hero h1 em {
-    display: inline;
-    margin-inline-start: 0.04em;
-  }
-  .hero-intro {
-    font-size: 1.08rem;
-  }
-  .hero-bio {
-    margin-top: 0;
-  }
-  .hero-links {
-    margin-top: 1rem;
-  }
+  .hero h1 em { margin-inline-start: 0.04em; }
+  .hero-copy { max-width: 38rem; font-size: 1rem; }
+  .hero-intro { font-size: 1.125rem; }
+  .hero-links { margin-top: 1.1rem; }
   .project-grid,
   .project-detail {
     grid-template-columns: 1fr;

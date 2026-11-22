@@ -1,0 +1,30 @@
+export const paperFigures = {
+  dejaView: {
+    src: "/images/papers/deja-view-fig2.webp",
+    width: 940,
+    height: 458,
+    alt: "The model encodes an image, reads neural activity and stored associations, answers the task, then updates memory.",
+    credit: "Shetty & Kreiman, Fig. 2",
+    source: "https://arxiv.org/html/2611.23177v1#S3.F2",
+    license: { label: "CC BY 4.0", url: "https://creativecommons.org/licenses/by/4.0/" },
+    photoCredits: "https://arxiv.org/html/2611.23177v1#A6.SS0.SSS0.Px2",
+  },
+  turing: {
+    src: "/images/papers/turing-tests-fig1.webp",
+    width: 685,
+    height: 623,
+    alt: "A human or machine judge identifies the source of a caption, a word association or a conversation.",
+    credit: "Zhang et al., Fig. 1",
+    source: "https://www.nature.com/articles/s41562-026-02590-6/figures/1",
+    license: { label: "CC BY-NC-ND 4.0", url: "https://creativecommons.org/licenses/by-nc-nd/4.0/" },
+  },
+  eigencam: {
+    src: "/images/papers/eigencam-fig9.webp",
+    width: 685,
+    height: 748,
+    alt: "Aerial views of a roundabout beside EigenCAM heatmaps and vehicle detections.",
+    credit: "Joshi et al., Fig. 9",
+    source: "https://link.springer.com/article/10.1007/s42452-025-06879-5/figures/9",
+    license: { label: "CC BY-NC-ND 4.0", url: "https://creativecommons.org/licenses/by-nc-nd/4.0/" },
+  },
+} as const;

@@ -1,6 +1,9 @@
+import { papers } from "./papers";
+
 export const projects = [
   {
     id: "visual-cortex",
+    status: "Ongoing",
     title: "Mapping inputs to visual cortex",
     field: "Functional connectomics",
     group: "Federico Rossi · IIT Rovereto",
@@ -13,6 +16,8 @@ export const projects = [
   },
   {
     id: "spike-inference",
+    note: { title: "Calcium dynamics models", href: "/blog/calcium-dynamics-models/" },
+    status: "Completed",
     title: "Inferring spikes from calcium",
     field: "Neural signal analysis",
     group: "Laurent Perrinet & Bruno Cessac · INT Marseille / Inria",
@@ -25,6 +30,8 @@ export const projects = [
   },
   {
     id: "visual-memory",
+    status: "Completed",
+    paper: papers.dejaView,
     title: "Testing visual working memory",
     field: "Computational cognition",
     group: "Gabriel Kreiman · Kreiman Lab",
@@ -37,6 +44,7 @@ export const projects = [
   },
   {
     id: "retinal-computation",
+    status: "Completed",
     title: "Modeling the dynamic retina",
     field: "Retinal computation",
     group: "Bruno Cessac · Inria BIOVISION",
@@ -46,6 +54,26 @@ export const projects = [
       "At BIOVISION I reviewed how artificial neural networks model retinal responses over time. I compared the biological questions different models ask and how their predictions are evaluated.",
     detail:
       "This project grew out of my interest in the transformations that take place before a visual signal reaches cortex.",
+  },
+  {
+    id: "turing-tests",
+    status: "Completed",
+    title: "Judging human and machine responses",
+    field: "Human and machine perception",
+    group: "Gabriel Kreiman · Kreiman Lab",
+    question: "Can people identify a machine by the way it answers a question or interprets an image?",
+    approach: "I helped run the language experiments in a six-task study. We collected human and model responses, then asked judges to identify their source.",
+    paper: papers.turing,
+  },
+  {
+    id: "aerial-detection",
+    status: "Completed",
+    title: "Explaining object detections in aerial images",
+    field: "Computer vision",
+    group: "Symbiosis Institute of Technology · University of Milan",
+    question: "Which image features help a detector recognize objects from above?",
+    approach: "I worked on combining object detectors and interpreting their predictions. We used EigenCAM to visualize the image regions behind a detection and tested what happened when we obscured those regions.",
+    paper: papers.eigencam,
   },
 ] as const;
 export type ProjectId = (typeof projects)[number]["id"];

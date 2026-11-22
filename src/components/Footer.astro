@@ -7,5 +7,29 @@ import { FULL_NAME, PROFILE_LINKS } from "@/consts";
   <nav aria-label="Profile and contact links">
     {PROFILE_LINKS.map(({ label, href }) => <a href={href}>{label}</a>)}
     <a href="/rss.xml">RSS</a>
+    <details class="site-credits">
+      <summary>Credits</summary>
+      <p>The interactive anatomy uses simplified, color-coded reconstructions
+        from the <a href="https://doi.org/10.1038/s41586-025-08790-w">MICrONS Consortium</a>
+        under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+        The glowing pulses are simulated.</p>
+    </details>
   </nav>
 </div>
+
+<style>
+  .site-credits { position: relative; }
+  .site-credits summary { font-size: .94rem; cursor: pointer; }
+  .site-credits p {
+    position: absolute; right: 0; bottom: 1.8rem; width: min(19rem, 80vw);
+    background: var(--panel); border: 1px solid var(--rule);
+    padding: .85rem 1rem; border-radius: .35rem;
+    color: var(--ink); font-size: .88rem; line-height: 1.5;
+  }
+  .site-credits p a { text-decoration: underline; }
+  @media (max-width: 760px) {
+    .site-credits { position: static; }
+    .footer-inner { position: relative; }
+    .site-credits p { bottom: 3.4rem; }
+  }
+</style>

@@ -1,91 +1,54 @@
 ---
-import volume from "@/data/microns-volume.json";
 import volumeUrl from "@/data/microns-volume.json?url";
-import { volumePoster } from "./neuron-activity";
-
-const poster = volumePoster(volume);
 ---
 
-<figure class="specimen" data-neuron data-volume={volumeUrl}>
+<figure
+  class="specimen"
+  data-neuron
+  data-volume={volumeUrl}
+  aria-label="Interactive MICrONS mouse visual cortex reconstruction"
+>
   <button
     type="button"
     class="stimulus"
-    aria-label="Highlight a neuron in the three-dimensional mouse visual cortex reconstruction"
+    aria-label="Stimulate a neuron. Drag horizontally to rotate the reconstruction."
     disabled
   >
-    <svg
+    <img
       class="volume-poster"
-      viewBox="0 0 640 405"
-      role="img"
-      aria-label="Forty-six neurons from mouse visual cortex, each traced in a different color against black."
-    >
-      {
-        poster.map(({ paths, soma, radius, color, opacity }) => (
-          <g
-            opacity={opacity}
-            stroke={color}
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            {paths.map(({ d, width }) => (
-              <path d={d} stroke-width={width} fill="none" />
-            ))}
-            <ellipse
-              cx={soma.x}
-              cy={soma.y}
-              rx={radius * 0.72}
-              ry={radius * 1.1}
-              fill={color}
-            />
-          </g>
-        ))
-      }
-    </svg>
-    <canvas aria-hidden="true"></canvas>
+      src="/images/microns-field.webp"
+      width="800"
+      height="507"
+      alt=""
+      fetchpriority="high"
+    />
+    <canvas class="volume-geometry" aria-hidden="true"></canvas>
+    <canvas class="volume-activity" aria-hidden="true"></canvas>
   </button>
-  <figcaption>
-    <div class="volume-caption">
-      <span class="specimen-name"
-        >Mouse visual cortex <span>·</span> {volume.length} neurons</span
-      >
-      <span class="interaction-hint" hidden
-        ><span class="desktop-cue">Click</span><span class="touch-cue">Tap</span
-        > a neuron to highlight it. Drag to rotate.</span
-      >
-    </div>
-    <div class="specimen-controls">
-      <button type="button" class="clear-cell" hidden>Show all</button>
-      <button
-        type="button"
-        class="playback"
-        aria-label="Pause animation"
-        title="Pause animation"
-        hidden
-      >
-        <svg
-          viewBox="0 0 18 18"
-          width="15"
-          height="15"
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path
-            class="pause-icon"
-            d="M4.5 3.5H7.5V14.5H4.5ZM10.5 3.5H13.5V14.5H10.5Z"></path>
-          <path class="play-icon" d="M5 3L14 9L5 15Z"></path>
-        </svg>
-      </button>
-    </div>
-    <small class="data-credit"
-      >Dendrites simplified from <a href="https://www.microns-explorer.org/"
-        >MICrONS</a
-      > (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>).
-      Signals are illustrative.</small
+  <button
+    type="button"
+    class="playback"
+    aria-label="Pause animation"
+    title="Pause animation"
+    hidden
+  >
+    <svg
+      viewBox="0 0 18 18"
+      width="15"
+      height="15"
+      fill="currentColor"
+      aria-hidden="true"
     >
-  </figcaption>
+      <path
+        class="pause-icon"
+        d="M4.5 3.5H7.5V14.5H4.5ZM10.5 3.5H13.5V14.5H10.5Z"></path>
+      <path class="play-icon" d="M5 3L14 9L5 15Z"></path>
+    </svg>
+  </button>
 </figure>
 <script>
   import { activateNeuron } from "./neuron-activity";
+  import { decodeMicrons } from "@/data/decode-microns";
   const figure = document.querySelector<HTMLElement>("[data-neuron]");
   if (figure) {
     fetch(figure.dataset.volume!)
@@ -93,7 +56,7 @@ const poster = volumePoster(volume);
         if (!response.ok) throw new Error("Neuron data unavailable");
         return response.json();
       })
-      .then((cells) => activateNeuron(figure, cells))
+      .then((data) => activateNeuron(figure, decodeMicrons(data)))
       .catch(() => {
         /* The static reconstruction remains visible. */
       });
@@ -104,21 +67,26 @@ const poster = volumePoster(volume);
     margin: 0;
     min-width: 0;
     width: 100%;
-    align-self: center;
+    height: 100%;
+    overflow: hidden;
   }
   .stimulus {
-    position: relative;
     display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
+    height: 100%;
     padding: 0;
-    aspect-ratio: 640 / 405;
     overflow: hidden;
     border: 0;
-    border-radius: 0.4rem;
+    border-radius: 0;
     background: #000;
     cursor: grab;
     touch-action: pan-y pinch-zoom;
     -webkit-tap-highlight-color: transparent;
+  }
+  .stimulus:focus-visible {
+    outline-offset: -4px;
   }
   .stimulus:active {
     cursor: grabbing;
@@ -133,101 +101,47 @@ const poster = volumePoster(volume);
     inset: 0;
     width: 100%;
     height: 100%;
+    pointer-events: none;
+  }
+  .volume-poster {
+    object-fit: cover;
   }
   canvas {
     visibility: hidden;
   }
-  .ready canvas {
+  .ready .volume-activity,
+  .with-gpu .volume-geometry {
     visibility: visible;
   }
   .ready .volume-poster {
     visibility: hidden;
   }
-  figcaption {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 0.22rem 0.75rem;
-    border-top: 1px solid var(--rule);
-    margin-top: 0.5rem;
-    padding-top: 0.65rem;
-  }
-  .volume-caption {
-    display: grid;
-    gap: 0.13rem;
-  }
-  .specimen-name {
-    font: 500 0.95rem/1.4 var(--body);
-    color: var(--ink);
-  }
-  .specimen-name span {
-    color: var(--muted);
-    padding-inline: 0.1em;
-  }
-  .interaction-hint {
-    font: 0.875rem/1.4 var(--body);
-    color: var(--muted);
-  }
-  .data-credit {
-    grid-column: 1/-1;
-    font: 0.77rem/1.45 var(--body);
-    color: var(--muted);
-  }
-  .data-credit a {
-    text-underline-offset: 0.19em;
-  }
-  .specimen-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  .specimen-controls button {
-    border: 1px solid var(--rule);
-    border-radius: 2rem;
-    color: var(--ink);
-    background: var(--bg);
-  }
-  .specimen-controls button:hover {
-    border-color: var(--muted);
-  }
-  .clear-cell {
-    font: 0.8rem var(--body);
-    min-height: 2.1rem;
-    padding-inline: 0.7rem;
-  }
   .playback {
+    position: absolute;
+    z-index: 3;
+    right: clamp(1rem, 4vw, 3.5rem);
+    bottom: clamp(1rem, 3.5vw, 2rem);
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid #fff6;
+    border-radius: 50%;
+    color: #fff;
+    background: #08090d99;
+    cursor: pointer;
+  }
+  .playback:hover,
+  .playback:focus-visible {
+    background: #1e1e27;
+    border-color: #fff;
   }
   .play-icon,
-  .playback[data-paused] .pause-icon,
-  .touch-cue {
+  .playback[data-paused] .pause-icon {
     display: none;
   }
   .playback[data-paused] .play-icon {
     display: initial;
-  }
-  @media (hover: none), (pointer: coarse) {
-    .touch-cue {
-      display: inline;
-    }
-    .desktop-cue {
-      display: none;
-    }
-  }
-  @media (max-width: 760px) {
-    figcaption {
-      margin-top: 0.25rem;
-      padding-top: 0.5rem;
-    }
-    .playback {
-      width: 2.65rem;
-      height: 2.65rem;
-    }
-    .specimen-controls {
-      gap: 0.2rem;
-    }
   }
 </style>

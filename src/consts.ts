@@ -16,6 +16,7 @@ export const PROFILE_LINKS = [
     label: "Google Scholar",
     href: "https://scholar.google.com/citations?user=WetO57EAAAAJ&hl=en",
   },
+  { label: "Neurotree", href: "https://neurotree.org/neurotree/tree.php?pid=921747" },
   { label: "Bluesky", href: "https://bsky.app/profile/mranmay.bsky.social" },
   { label: "GitHub", href: "https://github.com/Mranmay" },
   { label: "Email", href: "mailto:mranmays@gmail.com" },
