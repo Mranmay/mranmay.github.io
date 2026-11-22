@@ -1,0 +1,146 @@
+---
+const rates = [
+  { label: "Slow", k: 0.3 },
+  { label: "Moderate", k: 0.7 },
+  { label: "Fast", k: 1.5 },
+];
+const left = 42,
+  right = 478,
+  top = 26,
+  bottom = 146;
+function curve(k: number) {
+  return Array.from({ length: 91 }, (_, i) => {
+    const t = i / 15;
+    const x = left + ((right - left) * t) / 6;
+    const y = top + (bottom - top) * Math.exp(-k * t);
+    return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+}
+---
+
+<figure class="recovery">
+  <figcaption>
+    <strong>Recovery after a perturbation</strong><br />Change the recovery rate <i
+      >k</i
+    > to see how a simulated state returns to its baseline of 1.
+  </figcaption>
+  <fieldset>
+    <legend>Recovery rate</legend>
+    {
+      rates.map(({ label, k }, i) => (
+        <label>
+          <>
+            <input
+              type="radio"
+              name="recovery-rate"
+              value={label}
+              checked={i === 1}
+            />
+            <span>
+              {label} ({k})
+            </span>
+          </>
+        </label>
+      ))
+    }
+  </fieldset>
+  <svg
+    viewBox="0 0 510 183"
+    role="img"
+    aria-label="The state starts at zero. A higher recovery rate makes it approach one sooner."
+  >
+    <g class="axes"
+      ><path d="M42 26v120h436"></path><path
+        class="grid"
+        d="M42 26h436M42 86h436"></path></g
+    >
+    <g class="ticks"
+      ><text x="26" y="30">1</text><text x="26" y="150">0</text><text
+        x="42"
+        y="171">0</text
+      ><text x="478" y="171" text-anchor="end">6</text><text
+        x="255"
+        y="174"
+        text-anchor="middle">Time (arbitrary units)</text
+      ></g
+    >
+    {
+      rates.map(({ k, label }) => (
+        <path class="curve" data-rate={label} d={curve(k)} />
+      ))
+    }
+  </svg>
+</figure>
+<style>
+  .recovery {
+    padding: clamp(0.8rem, 3vw, 1.6rem);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--panel);
+  }
+  .recovery figcaption {
+    text-align: left;
+    margin: 0 0 0.8rem;
+  }
+  .recovery strong {
+    font-size: 1.12rem;
+    color: var(--ink);
+  }
+  fieldset {
+    border: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.9rem;
+    margin: 0;
+    padding: 0;
+  }
+  legend {
+    font: 0.85rem var(--body);
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+  }
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  input {
+    accent-color: var(--accent);
+  }
+  svg {
+    width: 100%;
+  }
+  .axes,
+  .curve {
+    fill: none;
+    stroke: var(--muted);
+  }
+  .grid {
+    stroke-dasharray: 3 5;
+    opacity: 0.5;
+  }
+  .ticks {
+    font: 13px var(--body);
+    fill: var(--muted);
+  }
+  .curve {
+    display: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+  }
+  .recovery:has(input[value="Slow"]:checked) [data-rate="Slow"],
+  .recovery:has(input[value="Moderate"]:checked) [data-rate="Moderate"],
+  .recovery:has(input[value="Fast"]:checked) [data-rate="Fast"] {
+    display: block;
+  }
+  @supports not selector(:has(*)) {
+    [data-rate="Moderate"] {
+      display: block;
+    }
+    fieldset {
+      display: none;
+    }
+  }
+</style>

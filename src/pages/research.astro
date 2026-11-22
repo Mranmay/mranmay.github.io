@@ -1,0 +1,44 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import ProjectArt from "@/components/ProjectArt.astro";
+import { projects } from "@/data/projects";
+---
+
+<Layout
+  title="Research | Mranmay Shetty"
+  description="Projects on cortical connectivity, spike inference, visual working memory and retinal modeling."
+>
+  <div class="shell inner-page">
+    <h1>Research</h1>
+    <p class="lead">
+      Four questions about vision, from the signals arriving at a neuron to the
+      images a model remembers.
+    </p>
+    <nav aria-label="Research projects" class="jump-links">
+      {projects.map((p) => <a href={`#${p.id}`}>{p.field}</a>)}
+    </nav>
+    {
+      projects.map((project) => (
+        <section id={project.id} class="project-detail">
+          <div>
+            <>
+              <ProjectArt id={project.id} />
+              <p class="credit">{project.group}</p>
+            </>
+          </div>
+          <div>
+            <>
+              <p class="meta">{project.field}</p>
+              <h2>{project.title}</h2>
+              <p class="project-question">{project.question}</p>
+            </>
+            <>
+              <p>{project.approach}</p>
+              <p>{project.detail}</p>
+            </>
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</Layout>

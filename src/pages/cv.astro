@@ -1,6 +1,5 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import Section from "@/components/Section.astro";
 import { FULL_NAME } from "@/consts";
 
 const education = [
@@ -8,7 +7,7 @@ const education = [
     place:
       "École Polytechnique de l'Université Côte d'Azur, Sophia-Antipolis, France",
     degree: "M.S. in Modeling for Neuronal and Cognitive Systems",
-    date: "Sep 2024 – Aug 2026 expected",
+    date: "Sep 2024 – Sep 2026",
   },
   {
     place: "Symbiosis International University, Pune, India",
@@ -22,7 +21,7 @@ const researchExperience = [
     role: "Research Intern",
     place:
       "Italian Institute of Technology, Center for Neuroscience and Cognitive Systems",
-    date: "Mar 2026 – ongoing",
+    date: "Mar 2026 – Aug 2026",
     bullets: [
       "Investigating rules of dendritic connectivity and compartment-specific visual processing using the MICRONS functional connectomics dataset and whole-dendritic-tree synaptic recordings.",
       "Developing analysis pipelines for two-photon calcium / glutamate imaging, neuronal morphology and connectivity reconstruction, and computational models of dendritic and circuit mechanisms in visual cortex.",
@@ -139,81 +138,91 @@ const miscellaneous = [
 ];
 ---
 
-<Layout title={`CV | ${FULL_NAME}`} description="Web CV for Mranmay Shetty.">
-  <Section title="Education">
-    <div class="mx-auto max-w-5xl space-y-6">
+<Layout
+  title={`CV | ${FULL_NAME}`}
+  description="Education, research experience, technical skills and awards."
+>
+  <div class="shell inner-page cv-page">
+    <h1>Curriculum vitae</h1>
+    <p class="lead">{FULL_NAME}</p>
+    <nav class="jump-links" aria-label="CV sections">
+      <a href="#education">Education</a><a href="#researchexperience"
+        >Research experience</a
+      ><a href="#technicalskills">Skills</a><a href="#miscellaneous"
+        >Awards &amp; activities</a>
+    </nav>
+    <section id="education" class="cv-section">
+      <h2>Education</h2>
       {
         education.map((item) => (
-          <article class="grid gap-2 border-2 border-white p-5 md:grid-cols-[1fr_14rem]">
-            <div>
-              <h2 class="text-2xl">{item.degree}</h2>
-              <p class="mt-2 text-white/80">{item.place}</p>
-            </div>
-            <p class="text-left text-white/70 md:text-right">{item.date}</p>
+          <article class="record">
+            <>
+              <div class="record-head">
+                <>
+                  <h3>{item.degree}</h3>
+                  <p class="meta">{item.date}</p>
+                </>
+              </div>
+              <p>{item.place}</p>
+            </>
           </article>
         ))
       }
-    </div>
-  </Section>
-
-  <Section title="Research Experience">
-    <div class="mx-auto max-w-5xl space-y-6">
+    </section>
+    <section id="researchexperience" class="cv-section">
+      <h2>Research experience</h2>
       {
         researchExperience.map((item) => (
-          <article class="border-2 border-white p-5">
-            <div class="grid gap-2 md:grid-cols-[1fr_14rem]">
-              <div>
-                <h2 class="text-2xl">{item.role}</h2>
-                <p class="mt-2 text-white/80">{item.place}</p>
+          <article class="record">
+            <>
+              <div class="record-head">
+                <>
+                  <h3>{item.role}</h3>
+                  <p class="meta">{item.date}</p>
+                </>
               </div>
-              <p class="text-left text-white/70 md:text-right">{item.date}</p>
-            </div>
-            <ul class="mt-5 list-disc space-y-3 pl-6 text-white/85">
-              {item.bullets.map((bullet) => (
-                <li>{bullet}</li>
-              ))}
-            </ul>
+              <p>{item.place}</p>
+              <ul>
+                {item.bullets.map((b) => (
+                  <li>{b}</li>
+                ))}
+              </ul>
+            </>
           </article>
         ))
       }
-    </div>
-  </Section>
-
-  <Section title="Technical Skills">
-    <div class="mx-auto max-w-5xl grid gap-4 md:grid-cols-2">
+    </section>
+    <section id="technicalskills" class="cv-section">
+      <h2>Technical skills</h2>
       {
-        skills.map((skill) => (
-          <article class="border-2 border-white p-5">
-            <h2 class="text-2xl">{skill.title}</h2>
-            <p class="mt-3 text-white/85">{skill.text}</p>
+        skills.map((item) => (
+          <article class="record">
+            <>
+              <h3>{item.title}</h3>
+              <p>{item.text}</p>
+            </>
           </article>
         ))
       }
-    </div>
-  </Section>
-
-  <Section title="Miscellaneous">
-    <div class="mx-auto max-w-5xl space-y-6">
+    </section>
+    <section id="miscellaneous" class="cv-section">
+      <h2>Awards &amp; activities</h2>
       {
         miscellaneous.map((item) => (
-          <article class="border-2 border-white p-5">
-            <div class="grid gap-2 md:grid-cols-[1fr_14rem]">
-              <div>
-                <h2 class="text-2xl">{item.title}</h2>
-                {item.place && <p class="mt-2 text-white/80">{item.place}</p>}
-              </div>
-              {item.date && (
-                <p class="text-left text-white/70 md:text-right">{item.date}</p>
-              )}
+          <article class="record">
+            <div class="record-head">
+              <h3>{item.title}</h3>
+              {item.date && <p class="meta">{item.date}</p>}
             </div>
-            <ul class="mt-5 list-disc space-y-3 pl-6 text-white/85">
-              {item.bullets.map((bullet) => (
-                <li>{bullet}</li>
+            {item.place && <p>{item.place}</p>}
+            <ul>
+              {item.bullets.map((b) => (
+                <li>{b}</li>
               ))}
             </ul>
           </article>
         ))
       }
-    </div>
-  </Section>
+    </section>
+  </div>
 </Layout>

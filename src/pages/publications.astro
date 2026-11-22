@@ -1,6 +1,5 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import Section from "@/components/Section.astro";
 import { FULL_NAME } from "@/consts";
 
 const publications = [
@@ -41,38 +40,24 @@ const inReview = [
   title={`Publications | ${FULL_NAME}`}
   description="Publications and in-review work by Mranmay Shetty."
 >
-  <Section title="Publications">
-    <div class="mx-auto max-w-5xl">
-      <p class="mb-8 text-center text-lg text-white/80">
-        Unpublished and in-review work is listed separately from published
-        papers.
-      </p>
-
-      <h2 class="mb-5 text-3xl">Journal &amp; Conference Papers:</h2>
-      <div class="space-y-5">
-        {
-          publications.map((item) => (
-            <article class="border-2 border-white p-5">
-              <h3 class="text-2xl">{item.title}</h3>
-              <p class="mt-3 text-white/80">{item.authors}</p>
-              <p class="mt-3 text-white/65">{item.venue}</p>
+  <div class="shell inner-page" id="publications">
+    <h1>Publications</h1>
+    {
+      [
+        { heading: "Journal & conference papers", items: publications },
+        { heading: "In review", items: inReview },
+      ].map((group) => (
+        <section class="cv-section">
+          <h2>{group.heading}</h2>
+          {group.items.map((paper) => (
+            <article class="record">
+              <p class="meta">{paper.venue}</p>
+              <h3>{paper.title}</h3>
+              <p>{paper.authors}</p>
             </article>
-          ))
-        }
-      </div>
-
-      <h2 class="mb-5 mt-12 text-3xl">In Review:</h2>
-      <div class="space-y-5">
-        {
-          inReview.map((item) => (
-            <article class="border-2 border-white p-5">
-              <h3 class="text-2xl">{item.title}</h3>
-              <p class="mt-3 text-white/80">{item.authors}</p>
-              <p class="mt-3 text-white/65">{item.venue}</p>
-            </article>
-          ))
-        }
-      </div>
-    </div>
-  </Section>
+          ))}
+        </section>
+      ))
+    }
+  </div>
 </Layout>
