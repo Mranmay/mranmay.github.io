@@ -10,7 +10,13 @@ import remarkMath from "remark-math";
 export default defineConfig({
   output: "static",
   site: "https://mranmay.github.io",
-  integrations: [mdx(), sitemap(), tailwind()],
+  integrations: [
+    mdx(),
+    sitemap({
+      filter: (url) => !["/about/", "/publications/"].includes(new URL(url).pathname),
+    }),
+    tailwind(),
+  ],
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],

@@ -1,6 +1,6 @@
 ---
 import "@/styles/global.css";
-import { SITE_DESCRIPTION, SITE_TITLE } from "@/consts";
+import { FULL_NAME, PROFILE_LINKS, SITE_DESCRIPTION, SITE_TITLE } from "@/consts";
 
 interface Props {
   title: string;
@@ -16,6 +16,30 @@ const {
 const site = Astro.site ?? Astro.url;
 const canonicalURL = new URL(Astro.url.pathname, site);
 const imageURL = new URL(image, site);
+const home = new URL("/", site).href;
+const profile = Astro.url.pathname === "/" && {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite", "@id": `${home}#website`,
+      url: home, name: FULL_NAME, alternateName: "Mranmay",
+      publisher: { "@id": `${home}#person` },
+    },
+    {
+      "@type": "ProfilePage", "@id": `${home}#profile`,
+      url: home, name: title, description,
+      isPartOf: { "@id": `${home}#website` },
+      mainEntity: { "@id": `${home}#person` },
+    },
+    {
+      "@type": "Person", "@id": `${home}#person`,
+      name: FULL_NAME, givenName: "Mranmay", familyName: "Shetty",
+      url: home, jobTitle: "Research Assistant",
+      worksFor: { "@type": "Organization", name: "Istituto Italiano di Tecnologia" },
+      sameAs: PROFILE_LINKS.map(({ href }) => href).filter(href => href.startsWith("https://")),
+    },
+  ],
+};
 ---
 
 <!-- Global Metadata -->
@@ -39,7 +63,10 @@ const imageURL = new URL(image, site);
 <meta name="title" content={title} />
 <meta name="description" content={description} />
 
+{profile && <script is:inline type="application/ld+json" set:html={JSON.stringify(profile).replace(/</g, "\\u003c")} />}
+
 <!-- Open Graph / Facebook -->
+<meta property="og:site_name" content={FULL_NAME} />
 <meta property="og:type" content="website" />
 <meta property="og:url" content={canonicalURL.href} />
 <meta property="og:title" content={title} />
