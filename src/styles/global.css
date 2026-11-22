@@ -1,42 +1,62 @@
 @font-face {
-  font-family: "Instrument Serif";
-  src: url("/fonts/instrument-serif-latin-400-normal.woff2") format("woff2");
-  font-weight: 400;
+  font-family: "DM Sans";
+  font-style: normal;
   font-display: swap;
+  font-weight: 100 1000;
+  src: url("/fonts/dm-sans-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
+
 @font-face {
-  font-family: "Instrument Serif";
-  src: url("/fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
-  font-weight: 400;
-  font-style: italic;
+  font-family: "DM Sans";
+  font-style: normal;
   font-display: swap;
+  font-weight: 100 1000;
+  src: url("/fonts/dm-sans-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
 }
 @font-face {
   font-family: "DM Sans";
-  src: url("/fonts/dm-sans-latin-wght-normal.woff2") format("woff2");
-  font-weight: 100 1000;
+  font-style: italic;
   font-display: swap;
+  font-weight: 100 1000;
+  src: url("/fonts/dm-sans-latin-ext-wght-italic.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "DM Sans";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 1000;
+  src: url("/fonts/dm-sans-latin-wght-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
 }
 :root {
   --body: "DM Sans", system-ui, sans-serif;
-  --display: "Instrument Serif", Georgia, serif;
-  --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  --bg: #151d1a;
-  --panel: #1e2922;
-  --ink: #f3efe5;
-  --muted: #b6bfb6;
-  --rule: #38453d;
-  --accent: #c3dba9;
-  --hero: #13221c;
+  --display: var(--body);
+  --mono: var(--body);
+  --bg: #000;
+  --panel: #151518;
+  --ink: #f5f4f2;
+  --muted: #b5b4bc;
+  --rule: #303034;
+  --accent: #c2b9ff;
+  --button-bg: #eeeafc;
+  --button-ink: #16121f;
+  --hero-name: #c6beee;
   color-scheme: dark;
 }
 :root[data-theme="light"] {
-  --bg: #f8f8f3;
-  --panel: #eff1e9;
-  --ink: #202b23;
-  --muted: #526158;
-  --rule: #cbd2c7;
-  --accent: #365c43;
+  --bg: #faf9fc;
+  --panel: #efedf3;
+  --ink: #1c1b20;
+  --muted: #5a5663;
+  --rule: #d5d2db;
+  --accent: #594486;
+  --button-bg: #292135;
+  --button-ink: #fff;
+  --hero-name: #655286;
   color-scheme: light;
 }
 * {
@@ -77,8 +97,8 @@ button {
   outline-offset: 4px;
 }
 ::selection {
-  color: #0e2117;
-  background: #c3dba9;
+  color: #100d18;
+  background: #d6ceff;
 }
 h1,
 h2,
@@ -188,65 +208,76 @@ body > header {
   display: block;
 }
 .hero {
-  background: radial-gradient(
-    ellipse at 72% 56%,
-    #24392b 0,
-    #182a21 36%,
-    var(--hero) 71%
-  );
-  color: #f3f0e5;
-  border-bottom: 1px solid #485748;
+  position: relative;
+  isolation: isolate;
+  background: #000;
+  color: #fcfaf8;
+  border-bottom: 1px solid var(--rule);
+  overflow: hidden;
+}
+.hero > figure {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgb(0 0 0 / 88%) 0%, rgb(0 0 0 / 82%) 29%, rgb(0 0 0 / 66%) 46%, transparent 70%);
 }
 .hero-inner {
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  align-items: center;
-  gap: clamp(0.5rem, 2vw, 2rem);
-  padding-block: clamp(3rem, 5.2vw, 5.5rem);
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: clamp(36rem, 77svh, 54rem);
+  padding-block: clamp(3.5rem, 6.5vw, 7rem);
+}
+.hero-inner a {
+  pointer-events: auto;
+}
+.hero h1 {
+  font-size: clamp(4.5rem, 7.7vw, 8rem);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+  margin-bottom: clamp(1.1rem, 2.4vw, 2rem);
+  text-shadow: 0 2px 24px #0009;
+}
+.hero h1 em {
+  font-weight: 400;
+  color: #e6ddff;
 }
 .hero-copy {
-  position: relative;
-  z-index: 1;
+  max-width: min(37rem, 51%);
+  color: #f1eef1;
+  font-size: 1.0625rem;
+  font-weight: 400;
+  line-height: 1.58;
+  text-wrap: pretty;
+  text-shadow: 0 1px 4px #000;
 }
-.discipline,
+.hero-copy p + p { margin-top: .85rem; }
+.hero-copy a {
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: #b4a8d8;
+  text-underline-offset: .2em;
+  text-decoration-thickness: 1px;
+}
+.hero-copy a:hover { text-decoration-color: #fff; }
 .meta {
   font: 500 0.81rem/1.5 var(--mono);
 }
-.discipline {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  color: #c5d9b5;
-  font-size: 0.84rem;
-}
-.discipline::before {
-  content: "";
-  width: 1.8rem;
-  height: 1px;
-  background: currentColor;
-}
-.hero h1 {
-  font-size: clamp(5.3rem, 7.7vw, 7.75rem);
-  line-height: 0.85;
-  letter-spacing: -0.034em;
-  margin: 1.3rem 0 1.5rem;
-}
-.hero h1 em {
-  display: block;
-  font-weight: 400;
-  color: #dfcaa6;
-}
-.hero-intro {
-  max-width: 24em;
-  font-size: clamp(1.18rem, 1.55vw, 1.48rem);
-  line-height: 1.4;
-}
-.hero-bio {
-  margin-top: 0.85rem;
-  max-width: 33em;
-  color: #bdc9be;
-  font-size: 1rem;
-  line-height: 1.65;
+.hero-links .button.solid {
+  background: #eeeafc;
+  border-color: #eeeafc;
+  color: #16121f;
 }
 .hero-links,
 .page-links {
@@ -266,12 +297,15 @@ body > header {
   text-decoration: none;
 }
 .button.solid {
-  background: #d9e4c5;
-  border-color: #d9e4c5;
-  color: #15251b;
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+  color: var(--button-ink);
 }
 .button.quiet {
-  border-color: #728274;
+  border-color: var(--muted);
+}
+.hero-links .text-link {
+  margin-inline-start: 0.35rem;
 }
 .button:hover {
   box-shadow: 0 0 0 1px currentColor;
@@ -339,7 +373,7 @@ body > header {
 .writing-section {
   border-top: 1px solid var(--rule);
 }
-.writing-section .post-row {
+.writing-section .home-posts {
   margin-top: 1.5rem;
 }
 body > footer {
@@ -567,6 +601,25 @@ body > footer {
   max-width: 100%;
   overflow-x: auto;
 }
+.article-body table {
+  border-collapse: collapse;
+  font-size: 1rem;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+.article-body th,
+.article-body td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--rule);
+}
+.article-body th {
+  color: var(--ink);
+  font-weight: 600;
+  vertical-align: bottom;
+}
+.article-body td {
+  color: var(--muted);
+}
 .article-body .katex-display {
   padding-block: 0.4rem;
   overflow-y: hidden;
@@ -597,30 +650,20 @@ body > footer {
   .cv-link {
     padding: 0.1rem 0.65rem;
   }
-  .hero-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    padding-block: 0.6rem 2.25rem;
-    gap: 1.35rem;
+  .hero::after {
+    background: linear-gradient(180deg, rgb(0 0 0 / 70%) 0, rgb(0 0 0 / 54%) 4.8rem, transparent 8rem, rgb(0 0 0 / 68%) 15rem, rgb(0 0 0 / 86%) 23rem, rgb(0 0 0 / 90%) 100%);
   }
-  .hero-copy {
-    order: 1;
+  .hero-inner {
+    min-height: auto;
+    padding-block: 1.7rem 2.3rem;
   }
   .hero h1 {
-    font-size: clamp(3.4rem, 12.5vw, 5.5rem);
-    margin: 0.9rem 0 1rem;
-    line-height: 0.98;
+    font-size: clamp(2.6rem, 9.7vw, 4.8rem);
+    margin: 0 0 clamp(8rem, 22svh, 12rem);
   }
-  .hero h1 em {
-    display: inline;
-  }
-  .hero-bio {
-    font-size: 0.97rem;
-  }
-  .hero-links {
-    margin-top: 1.15rem;
-  }
+  .hero h1 em { margin-inline-start: 0.04em; }
+  .hero-copy { max-width: 38rem; font-size: 1rem; }
+  .hero-links { margin-top: 1.1rem; }
   .project-grid,
   .project-detail {
     grid-template-columns: 1fr;

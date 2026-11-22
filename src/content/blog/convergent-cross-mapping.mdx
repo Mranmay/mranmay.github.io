@@ -1,0 +1,54 @@
+---
+title: "Testing Convergent Cross Mapping on a Rössler Oscillator"
+description: "I tested whether one time series could reconstruct another in two simulations. Adding a recurrent network made a known connection surprisingly hard to recover."
+pubDate: 2025-11-08
+updatedDate: 2025-11-24
+author: Mranmay Shetty
+tags: ["Dynamical systems", "CCM"]
+---
+
+If one system drives another, where should I look for evidence of the driver? Convergent cross mapping (CCM) starts with the response. If the driver has left a trace in the response's history, moments with similar response histories should also have similar driver values. A simulated system lets me check that reasoning because I can see both time series and choose the coupling myself.
+
+## How a history becomes a prediction
+
+Suppose I observe just the second coordinate, $x_2$, of a Rössler oscillator. The same $x_2$ value can occur while the oscillator is rising or falling. I can distinguish some of those visits by keeping three samples, separated by a delay $\tau$. A row of my reconstruction contains $(x_2(t-2\tau),\,x_2(t-\tau),\,x_2(t))$. I pair that row with the value of $x_1(t)$ at its **last** sample. Pairing it with the first sample would quietly change the question.
+
+I use the first $L$ rows as a reference library. For each later row, I find the four closest histories in the library by Euclidean distance. Each neighbor comes with its own recorded $x_1$ value. I estimate the missing $x_1$ by averaging those four values, with an exponential weight that gives the closest histories more influence. Then I compute the Pearson correlation $\rho$ between my estimates and the held-out $x_1$ values. I repeat at different library lengths and swap the two coordinates to get the second curve.
+
+## Experiment update · November 24, 2025
+
+### A known driver and a 100-unit network
+
+In my first simulation, a Rössler oscillator $X$ drove a recurrent rate network $Y$. I kept only the oscillator's first coordinate, $x_1(t)$, and the activity of the network's fourth unit, $y_4(t)$. For each signal I used a ten-dimensional embedding with a delay of one sample.
+
+The blue curve estimates the driver from the responding unit's history. It sits above the orange curve, which reconstructs the unit from the driver. The vertical scale is important. Even the best correlation is below 0.04, and adding reference points sometimes makes it worse. I knew which way the signal travelled because I built the network. These curves alone would give me little confidence in that conclusion.
+
+<figure>
+  <img src="/images/posts/convergent-cross-mapping/network-reconstruction.webp" width="1120" height="640" loading="lazy" alt="Both reconstruction correlations stay close to zero as the library grows to 300 points. The blue curve peaks below 0.04, dips, then rises slightly." />
+  <figcaption>Simulated rate network. Blue estimates the oscillator from one network unit. Orange estimates that unit from the oscillator.</figcaption>
+</figure>
+
+### Checking the same calculation on three variables
+
+I went back to the oscillator itself. Its three coordinates follow
+
+$$
+\dot{x}_1=-x_2-x_3,\qquad
+\dot{x}_2=x_1+a x_2,\qquad
+\dot{x}_3=b+x_3(x_1-c).
+$$
+
+I used $a=b=0.2$ and $c=5.7$, started from $(1,0,0)$, and took 15,000 Euler steps of length 0.05. I set aside the first 2,000 steps so the initial transient would not dominate the library. This time I used three coordinates in each delay vector, spaced five samples apart, and eight library lengths from 50 to 1,000.
+
+<figure>
+  <img src="/images/posts/convergent-cross-mapping/oscillator-reconstruction.webp" width="1120" height="640" loading="lazy" alt="For a library of 50, the blue and orange correlations are about 0.56 and 0.18. Both exceed 0.9 at the next library size and approach one by about 320 points." />
+  <figcaption>Oscillator alone. Blue reconstructs the first coordinate from the second. Orange reverses their roles. The vertical axis spans a much larger range than in the network plot.</figcaption>
+</figure>
+
+Here the two curves rise quickly and nearly coincide by about 320 library points. Both coordinates belong to the same low-dimensional system, and each carries information about its state. This was the check I needed before trying to interpret the weak network result. The same reconstruction code can work on a simple trajectory, while a short history from a single unit can tell me very little about the input driving a much larger network.
+
+## What would this tell me about two neurons?
+
+Imagine recording two neurons while the same grating moves across their receptive fields. The recent activity of one neuron might help predict the other because both see the grating. To ask whether one influences the other, I’d want to compare trials with the same stimulus, check which signal leads, and see whether the prediction survives those controls. The oscillator gives me something a pair of recordings usually can’t: I can switch off the coupling and repeat the experiment. [How time lags affect cross mapping](https://doi.org/10.1038/srep14750)
+
+[Original CCM paper](https://doi.org/10.1126/science.1227079) · [Recurrent-network study](https://doi.org/10.1103/PhysRevResearch.5.043211) · [Sugihara Lab’s Python implementation](https://github.com/SugiharaLab/pyEDM)

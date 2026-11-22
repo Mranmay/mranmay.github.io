@@ -1,8 +1,7 @@
 ---
 import Layout from "@/layouts/Layout.astro";
 import Hero from "@/components/Hero.astro";
-import ProjectArt from "@/components/ProjectArt.astro";
-import { projects } from "@/data/projects";
+import Publications from "@/components/Publications.astro";
 import { getCollection } from "astro:content";
 import BlogPostCard from "@/components/BlogPostCard.astro";
 const posts = (await getCollection("blog")).sort(
@@ -12,26 +11,7 @@ const posts = (await getCollection("blog")).sort(
 
 <Layout title="Mranmay Shetty | Computational Neuroscience">
   <Hero />
-  <section class="shell home-section" aria-labelledby="research-title">
-    <div class="section-head">
-      <h2 id="research-title">Selected research</h2><a
-        class="text-link"
-        href="/research/">All research</a>
-    </div>
-    <div class="project-grid">
-      {
-        projects.slice(0, 3).map((project) => (
-          <a class="project-card" href={`/research/#${project.id}`}>
-            <ProjectArt id={project.id} />
-            <>
-              <p class="meta">{project.field}</p>
-              <h3>{project.title}</h3>
-            </>
-          </a>
-        ))
-      }
-    </div>
-  </section>
+  <Publications />
   {
     posts.length > 0 && (
       <section
@@ -40,13 +20,15 @@ const posts = (await getCollection("blog")).sort(
       >
         <div class="section-head">
           <>
-            <h2 id="writing-title">Latest writing</h2>
+            <h2 id="writing-title">Blog</h2>
             <a class="text-link" href="/blog/">
               All posts
             </a>
           </>
         </div>
-        <BlogPostCard post={posts[0]} />
+        <div class="home-posts">
+          {posts.slice(0, 3).map((post) => <BlogPostCard post={post} />)}
+        </div>
       </section>
     )
   }
