@@ -1,6 +1,6 @@
 ---
 title: "Trying to understand convergent cross mapping with a Rössler oscillator"
-description: "I knew which way the signal travelled because I’d wired up the simulation myself. Could I work it out from the traces alone?"
+description: "I was looking for ways to study causality in neural recordings without training a big model. A paper on macaque prefrontal cortex led me to try cross mapping for myself."
 pubDate: 2025-11-08
 updatedDate: 2026-11-23
 author: Mranmay Shetty
@@ -9,41 +9,39 @@ tags: ["Dynamical systems", "CCM"]
 
 import CcmReconstruction from "@/components/CcmReconstruction.astro";
 
-The bit of convergent cross mapping (CCM) that took me a while to get was the direction. If $X$ drives $Y$, why would I try to estimate $X$ from $Y$? Sugihara and colleagues’ idea was that the response can carry a record of what drove it. A good place to look for a signal from $X$, then, is in the recent history of $Y$. I wanted to see that happen in a system where I already knew the answer. [Sugihara et al., *Detecting Causality in Complex Ecosystems*](https://doi.org/10.1126/science.1227079)
+I was looking into how people study causality in neuroscience. Say I record from two sites in cortex and their activity goes up and down together. Can I use those recordings to work out whether stimulating one site would do anything to the other? Training a large neural network can get expensive, and I wanted to see how far I could get with the time series themselves.
 
-I got the idea for the particular simulation from a different paper. Amin Nejatbakhsh, Luca Mazzucato and colleagues tested their reconstruction method on a recurrent network with a subsystem governed by Rössler dynamics. They also studied real recordings and microstimulation in macaque prefrontal cortex. I borrowed the oscillator-and-network setup for a smaller exercise of my own. All the traces below are simulated. [Nejatbakhsh et al., *Physical Review Research*](https://doi.org/10.1103/PhysRevResearch.5.043211)
+Granger causality seemed like a good place to start. Suppose I want to predict what happens next at site B. I make one prediction using B’s recent activity, then try again with A’s recent activity available too. If adding A consistently improves the forecast on new data, A carries information about B’s future beyond what B’s own past tells me. The usual linear version is cheap to fit. One reason to look further is that the effect of an input might depend on what the circuit is already doing, which a simple linear model can miss. [Granger’s original paper](https://doi.org/10.2307/1912791)
 
-## The connection I knew was there
+I came across convergent cross mapping (CCM) in a paper by Amin Nejatbakhsh, Luca Mazzucato and colleagues. They recorded spontaneous activity in macaque prefrontal cortex and used it to predict what would happen when they electrically stimulated individual sites. I liked that they had a way to check the answer. Their CCM-based measure did better than the Granger measures they tested at predicting those stimulation effects. That’s the comparison that got me interested. [Nejatbakhsh et al., 2023](https://doi.org/10.1103/PhysRevResearch.5.043211)
 
-I had a Rössler oscillator drive a 100-unit recurrent rate network. Then I threw away nearly everything. I kept just the oscillator’s first coordinate and the activity of the network’s fourth unit. Could a short history of that one unit tell me what the oscillator had been doing?
+The idea originally came from Sugihara and colleagues, who were studying ecological time series. The direction took me a minute. With Granger I’d used A’s past to help predict B’s future. With CCM, if I think A drives B, I look in **B’s history for information about A**. If the two are coupled, similar stretches of B’s trajectory can correspond to similar states of A. Looking up nearby stretches lets me pick up a nonlinear relationship without having to guess its equation. [Sugihara et al., 2012](https://doi.org/10.1126/science.1227079)
+
+## Trying it on a connection I put there myself
+
+I borrowed the Rössler oscillator idea from the neuroscience paper. In my simulation the oscillator drove a network of 100 recurrent units. I kept two traces, the oscillator’s first coordinate and the activity of the fourth network unit, and tried the reconstruction in both directions. I expected that knowing the wiring would make the plot fairly easy to read.
 
 <figure>
-  <img src="/images/posts/convergent-cross-mapping/network-reconstruction.webp" width="1120" height="640" loading="lazy" alt="Both reconstruction correlations stay near zero up to 300 library points. The larger of the two peaks below 0.04." />
-  <figcaption>Blue estimates the driver from the responding unit. Orange goes the other way. In this run I used ten samples of history spaced one simulation step apart.</figcaption>
+  <img src="/images/posts/convergent-cross-mapping/network-reconstruction.webp" width="1120" height="640" loading="lazy" alt="Two reconstruction curves for the simulated network. Both correlations stay below 0.04." />
+  <figcaption>Blue uses ten consecutive samples from the responding unit to estimate the oscillator. Orange uses the oscillator to estimate the unit.</figcaption>
 </figure>
 
-At first glance the blue curve looks encouraging. Then I read the vertical axis. Its best correlation is under **0.04**, and giving it more examples sometimes makes it worse. If someone had handed me just these curves, I couldn’t have told them with any confidence how the network was wired.
+The blue line does sit above the orange one. The problem is the scale. Even at its best the correlation is below 0.04. I knew this unit belonged to a network receiving input from the oscillator, but I’d have had a hard time arguing that from these traces. So I took the network out and tried a simpler check.
 
-## Going back to the oscillator
+## Could I recover one coordinate from another?
 
-To check my calculation, I took the network out and kept the oscillator’s three coordinates. Its equations are
+This time I kept two coordinates of the oscillator itself. I hid $x_1$ and wrote down three values of $x_2$ at each step, the current value and the values five and ten samples earlier. That little bit of history matters. The oscillator passes through the same height on its way up and on its way down.
 
-$$
-\dot{x}_1=-x_2-x_3,\qquad
-\dot{x}_2=x_1+a x_2,\qquad
-\dot{x}_3=b+x_3(x_1-c).
-$$
-
-Suppose I cover up $x_1$ and let myself see only $x_2$. One value of $x_2$ is ambiguous. The oscillator may have passed that value on the way up or on the way down. So for each time $t$, I write down $x_2$ now, five samples ago and ten samples ago. Those three numbers give me a little history I can look up.
-
-I keep the first $L$ histories in a library alongside the value $x_1$ had at the end of each one. For each later history, I find its four closest matches, look up their $x_1$ values and average them, giving the closest matches more weight. Since I still have the simulated $x_1$ trace, I can uncover it and check my estimates. Swapping the two coordinates lets me run the same check in reverse.
+I used the first 50 histories as a reference library. For a later stretch of $x_2$, I looked up the four closest matches in that library. I knew what $x_1$ had been at each of those four times, so I averaged those values, giving more weight to closer matches. Then I uncovered $x_1$ to see how well I’d done.
 
 <CcmReconstruction />
 
-At 50 library points I could reconstruct $x_1$ from the history of $x_2$ with a correlation of about **0.56**. Swapping the coordinates gave only **0.18**. Select 185 points and the gap almost disappears. Each point scores all estimates after that library against the simulated coordinate at the same times. The two directions use the same test times at each library size. As the library grows, the remaining test period gets shorter.
+At 50 points my estimates correlated about **0.56** with the actual $x_1$. Swapping the coordinates gave **0.18**. Try 185 points in the figure. Both correlations are now above **0.95**. That made the “convergent” part click for me. With a longer stretch of the orbit to search, I had a much better chance of finding a close match. Both directions worked here because I was observing two coordinates of the same low-dimensional system.
 
-I used $a=b=0.2$ and $c=5.7$, starting at $(1,0,0)$. I ran 15,000 Euler steps of length 0.05 and discarded the first 2,000.
+For this check I used the standard Rössler parameters $a=b=0.2$ and $c=5.7$. I started at $(1,0,0)$, took 15,000 Euler steps of length 0.05 and dropped the first 2,000. Each score uses the samples after its reference library, so the two directions are compared over the same times at each library size.
 
-That comparison helped me understand “convergent.” With 50 examples, some stretches of the orbit have poor matches in my library. With a few hundred, the oscillator has revisited enough nearby states that I can recover either coordinate well. A correlation close to one in both directions makes sense here. I’m watching two coordinates of the same system.
+## Where I’d use it in neuroscience
 
-What stuck with me was how differently the very same question worked out for one unit in the network. I can build in a real input and still see almost no sign of it in the two traces I chose. With actual neurons I’d have another complication. Two cells watching the same moving grating might predict each other because both respond to the stimulus. I’d want to see what survived after matching the stimulus across trials and checking the time lag before drawing a circuit diagram from those curves. [Cross mapping with time lags](https://doi.org/10.1038/srep14750)
+I’d use this to decide which connections to test experimentally. In visual cortex, for instance, two cells can both respond to the same moving grating. Before getting excited about a high cross-map score, I’d want to know whether it held up across repeated presentations of that grating and whether the timing made sense for the proposed direction of influence.
+
+What I like about the macaque experiment is that it takes the next step. You can pick a site using activity you’ve already recorded, say where else you expect a response, then stimulate and see what you got right. My little network example also gives me a reason to keep some low-scoring pairs in that experiment. I put the input there myself and still barely saw it.
