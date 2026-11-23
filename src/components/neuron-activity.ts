@@ -14,7 +14,7 @@ import {
 
 const W = 640,
   H = 405;
-const pulseHaloWidth = 3.5, pulseCoreWidth = 1.2;
+const pulseHaloWidth = 3.15, pulseCoreWidth = 1.08;
 const initialYaw = -0.23,
   initialPitch = 0.19;
 function camera(yaw: number, pitch: number) {
@@ -206,8 +206,9 @@ function prepare(cell: Cell) {
   };
 }
 type Neuron = ReturnType<typeof prepare>;
-const burstDuration = 3.2;
 const fadeDuration = 0.45;
+// Give relays time to cross the field at the configured speed, then fade.
+const burstDuration = 2.34 / pulseTravelRate + fadeDuration;
 type Hit = { neuron: Neuron; edgeIndex: number; fraction: number; onSoma?: boolean };
 type Pattern = ReturnType<typeof traceArbor>;
 type Bridge = { from: Neuron; start: Point3; end: Point3; born: number; duration: number };
@@ -715,11 +716,11 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     if (!pieces) return;
     ctx.lineCap = ctx.lineJoin = "round";
     ctx.strokeStyle = front.cell.color;
-    ctx.lineWidth = still ? 2.7 : pulseHaloWidth;
+    ctx.lineWidth = still ? 2.43 : pulseHaloWidth;
     ctx.globalAlpha = still ? 0.14 : 0.22;
     ctx.stroke();
     ctx.strokeStyle = front.cell.waveHighlight;
-    ctx.lineWidth = still ? 0.85 : pulseCoreWidth;
+    ctx.lineWidth = still ? 0.77 : pulseCoreWidth;
     ctx.globalAlpha = still ? 0.67 : 0.96;
     ctx.stroke();
   }
