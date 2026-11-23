@@ -18,6 +18,24 @@ const { title = SITE_TITLE, description = SITE_DESCRIPTION } = Astro.props;
     <BaseHead title={title} description={description} />
   </head>
   <body>
+    <script is:inline>
+      (() => {
+        const viewport = window.visualViewport;
+        if (!viewport || !matchMedia("(any-pointer: coarse)").matches) return;
+        const root = document.documentElement;
+        function syncWidth() {
+          // Some tablet browsers update the visible viewport before the layout viewport.
+          if (Math.abs(viewport.scale - 1) > 0.01) return;
+          const width = Math.round(viewport.width);
+          if (width > root.clientWidth + 1) root.style.setProperty("--rotation-width", width + "px");
+          else root.style.removeProperty("--rotation-width");
+        }
+        viewport.addEventListener("resize", syncWidth);
+        window.addEventListener("resize", syncWidth);
+        window.addEventListener("pageshow", syncWidth);
+        syncWidth();
+      })();
+    </script>
     <a href="#main" class="skip-link">Skip to content</a>
     <header><Navbar /></header>
     <main id="main"><slot /></main>
