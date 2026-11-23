@@ -1,5 +1,8 @@
 import type { Point3 } from "../data/dendrites";
 
+// Scale travel along arbors and across their contacts at the same pace.
+export const pulseTravelRate = 0.85;
+
 type Arbor = {
   cell: { soma: Point3 };
   points: Point3[];
@@ -83,7 +86,7 @@ export function traceArbor(n: Arbor, stimulus: Stimulus) {
     }
   }
   bands.sort((a, b) => a.start - b.start);
-  return { bands, distance, origin, extent, longest, speed: Math.max(145, extent / 1.9) };
+  return { bands, distance, origin, extent, longest, speed: pulseTravelRate * Math.max(145, extent / 1.9) };
 }
 
 // Only the gap between the two arbors is synthetic. Each side attaches
