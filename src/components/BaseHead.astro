@@ -5,17 +5,16 @@ import { FULL_NAME, PROFILE_LINKS, SITE_DESCRIPTION, SITE_TITLE } from "@/consts
 interface Props {
   title: string;
   description?: string;
-  image?: string;
 }
 
 const {
   title = SITE_TITLE,
   description = SITE_DESCRIPTION,
-  image = "/image.jpg",
 } = Astro.props;
 const site = Astro.site ?? Astro.url;
 const canonicalURL = new URL(Astro.url.pathname, site);
-const imageURL = new URL(image, site);
+const imageURL = new URL("/images/mranmay-shetty-portfolio.jpg", site);
+const imageAlt = "Mranmay Shetty · Computational neuroscience, with multicolored mouse cortical neurons.";
 const home = new URL("/", site).href;
 const profile = Astro.url.pathname === "/" && {
   "@context": "https://schema.org",
@@ -73,9 +72,15 @@ const profile = Astro.url.pathname === "/" && {
 <meta property="og:description" content={description} />
 <meta property="og:image" content={imageURL.href} />
 
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content={imageAlt} />
+
 <!-- Twitter -->
-<meta property="twitter:card" content="summary_large_image" />
-<meta property="twitter:url" content={canonicalURL.href} />
-<meta property="twitter:title" content={title} />
-<meta property="twitter:description" content={description} />
-<meta property="twitter:image" content={imageURL.href} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:url" content={canonicalURL.href} />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={imageURL.href} />
+<meta name="twitter:image:alt" content={imageAlt} />
