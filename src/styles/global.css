@@ -66,9 +66,11 @@
 html {
   background: var(--bg);
   scroll-padding-top: 1.5rem;
+  overflow-x: clip;
 }
 body {
   margin: 0;
+  width: 100%;
   font: 1rem/1.6 var(--body);
   color: var(--ink);
   background: var(--bg);
@@ -638,6 +640,21 @@ body > footer {
 }
 .article-body pre {
   padding: 1rem;
+}
+/* Recalculate the page width when a touch viewport rotates or changes size in Split View. */
+@media (any-pointer: coarse) {
+  body {
+    width: max(100dvw, var(--rotation-width, 0px));
+  }
+}
+@media (min-width: 761px) and (max-width: 1380px) and (orientation: landscape) {
+  .hero-inner {
+    min-height: clamp(30rem, 80svh, 50rem);
+    padding-block: clamp(2rem, 5svh, 3.5rem);
+  }
+  .hero-copy {
+    max-width: min(38rem, 60%);
+  }
 }
 @media (max-width: 760px) {
   .masthead {
