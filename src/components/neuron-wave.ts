@@ -4,7 +4,8 @@ type Arbor = {
   cell: { soma: Point3 };
   points: Point3[];
   somaIndex: number;
-  parent: Int32Array;
+  edges: { a: number; b: number; length: number }[];
+  incident: number[][];
   contacts: number[];
 };
 
@@ -24,47 +25,83 @@ function nearestContact(n: Arbor, target: Point3) {
   return best;
 }
 
-function toSoma(n: Arbor, from: number) {
-  const path: Point3[] = [];
-  let node = from;
-  if (n.parent[node] < 0) {
-    path.push(n.points[node]);
-    node = nearestContact(n, n.points[node]);
+export type Stimulus = { node: number } | { edge: number; fraction: number };
+type Band = { a: number; b: number; from: number; to: number; start: number; end: number };
+
+// Travel in both directions from the contact. Distances are along cables and
+// include compartment/caliber timing. A junction transmits into every outlet.
+export function traceArbor(n: Arbor, stimulus: Stimulus) {
+  const distance = new Float64Array(n.incident.length).fill(Infinity);
+  const queue: number[] = [];
+  function offer(node: number, time: number) {
+    if (time >= distance[node]) return;
+    distance[node] = time;
+    queue.push(node);
   }
-  while (node !== n.somaIndex) {
-    path.push(n.points[node]);
-    node = n.parent[node];
+  let origin: Point3;
+  if ("node" in stimulus) {
+    offer(stimulus.node, 0);
+    origin = n.points[stimulus.node];
+  } else {
+    const e = n.edges[stimulus.edge];
+    offer(e.a, stimulus.fraction * e.length);
+    offer(e.b, (1 - stimulus.fraction) * e.length);
+    origin = between(n.points[e.a], n.points[e.b], stimulus.fraction);
   }
-  path.push(n.cell.soma);
-  return path;
+  for (let i = 0; i < queue.length; i++) {
+    const node = queue[i];
+    for (const id of n.incident[node]) {
+      const e = n.edges[id];
+      offer(e.a === node ? e.b : e.a, distance[node] + e.length);
+    }
+  }
+  const bands: Band[] = [];
+  let extent = 0, longest = 0;
+  for (let id = 0; id < n.edges.length; id++) {
+    const e = n.edges[id], da = distance[e.a], db = distance[e.b];
+    if (!Number.isFinite(da)) continue;
+    // In a loop, opposing fronts stop where they meet. An interior click
+    // splits its cable into two intervals sharing the exact click position.
+    function add(from: number, to: number, start: number) {
+      const span = Math.abs(to - from) * e.length;
+      if (span < 1e-7) return;
+      const end = start + span;
+      extent = Math.max(extent, end);
+      longest = Math.max(longest, span);
+      bands.push({ a: e.a, b: e.b, from, to, start, end });
+    }
+    function interval(lo: number, hi: number, left: number, right: number) {
+      const meet = Math.max(lo, Math.min(hi, (lo + hi + (right - left) / e.length) / 2));
+      add(lo, meet, left);
+      add(hi, meet, right);
+    }
+    if ("edge" in stimulus && stimulus.edge === id) {
+      interval(0, stimulus.fraction, da, 0);
+      interval(stimulus.fraction, 1, 0, db);
+    } else {
+      interval(0, 1, da, db);
+    }
+  }
+  bands.sort((a, b) => a.start - b.start);
+  return { bands, distance, origin, extent, longest, speed: Math.max(145, extent / 1.9) };
 }
 
-export function inputPath(n: Arbor, edge: { a: number; b: number }, fraction: number, onSoma: boolean) {
-  if (onSoma) return [n.cell.soma];
-  const { a, b } = edge;
-  const node = n.parent[a] === b ? b : n.parent[b] === a ? a : fraction < 0.5 ? a : b;
-  return [between(n.points[a], n.points[b], fraction), ...toSoma(n, node)];
-}
-
-// A visual relay uses traced processes on both cells and a synthetic bridge
-// between them. The reconstruction contains no measured synapse pairs.
-export function relayPath(from: Arbor, to: Arbor) {
-  const exit = nearestContact(from, between(from.cell.soma, to.cell.soma, 0.52));
+// Only the gap between the two arbors is synthetic. Each side attaches
+// to a real graph vertex, so the bridge fires when the front reaches it.
+export function relayContact(from: Arbor, to: Arbor, distance: Float64Array) {
+  const target = between(from.cell.soma, to.cell.soma, 0.52);
+  let exit = nearestContact(from, target);
+  // A disconnected trace can only relay from the component that was touched.
+  if (!Number.isFinite(distance[exit])) {
+    let best = Infinity;
+    for (let i = 0; i < distance.length; i++) {
+      if (!Number.isFinite(distance[i])) continue;
+      const d = squared(from.points[i], target);
+      if (d < best) { best = d; exit = i; }
+    }
+  }
   const entry = nearestContact(to, between(from.points[exit], to.cell.soma, 0.42));
-  return [...toSoma(from, exit).reverse(), ...toSoma(to, entry)];
-}
-
-export function measurePath(path: Point3[]) {
-  const points = [path[0]], distance = [0];
-  let length = 0;
-  for (const p of path.slice(1)) {
-    const step = Math.sqrt(squared(points[points.length - 1], p));
-    if (!step) continue;
-    length += step;
-    points.push(p);
-    distance.push(length);
-  }
-  return { points, distance, length };
+  return { exit, entry };
 }
 
 // Each cell relays from a nearer, already reachable neighbor. Ordering by
@@ -74,11 +111,15 @@ export function planSpread<T extends Arbor>(source: T, cells: T[]) {
     .sort((a, b) => squared(a.cell.soma, source.cell.soma) - squared(b.cell.soma, source.cell.soma))];
   return order.map((cell, i) => {
     let parent = 0, shortest = Infinity;
-    for (let j = 0; j < i; j++) {
+    for (let j = 0; j < (i <= 3 ? 1 : i); j++) {
       const d = squared(cell.cell.soma, order[j].cell.soma);
       if (d < shortest) { shortest = d; parent = j; }
     }
-    return { cell, parent, radius: Math.sqrt(squared(source.cell.soma, cell.cell.soma)), arrival: Infinity };
+    return {
+      cell, parent, radius: Math.sqrt(squared(source.cell.soma, cell.cell.soma)), arrival: Infinity,
+      timing: null as Pick<ReturnType<typeof traceArbor>, "distance" | "speed"> | null,
+      contact: null as ReturnType<typeof relayContact> | null,
+    };
   });
 }
 

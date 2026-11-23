@@ -8,8 +8,8 @@ import {
   somaAxes,
 } from "./neuron-style";
 import {
-  between, inputPath, measurePath, nextCharge, planSpread, recruitedCount,
-  relayPath, toHsl, transferColor,
+  between, nextCharge, planSpread, recruitedCount, relayContact, traceArbor,
+  toHsl, transferColor, type Stimulus,
 } from "./neuron-wave";
 
 const W = 640,
@@ -65,7 +65,7 @@ function prepare(cell: Cell) {
     axon: branch.axon === true,
   }));
   const somaIndex = index(cell.soma);
-  const neighbors: number[][] = Array.from({ length: points.length }, () => []);
+  const incident: number[][] = Array.from({ length: points.length }, () => []);
   const edges: {
     a: number;
     b: number;
@@ -95,8 +95,8 @@ function prepare(cell: Cell) {
       const proximal = !branch.axon && r1 + r2 > 0.85 &&
         Math.hypot(p.x - cell.soma.x, p.y - cell.soma.y, p.z - cell.soma.z) < 42;
       edges.push({ a, b, length: distance / rate, r1, r2, axon: branch.axon, proximal });
-      neighbors[a].push(b);
-      neighbors[b].push(a);
+      incident[a].push(edges.length - 1);
+      incident[b].push(edges.length - 1);
     }
   }
   // Neighboring edges in the file follow the same cable. Enclose short runs
@@ -123,7 +123,9 @@ function prepare(cell: Cell) {
     queue = [somaIndex];
   parent[somaIndex] = somaIndex;
   for (let i = 0; i < queue.length; i++) {
-    for (const next of neighbors[queue[i]]) {
+    for (const edgeId of incident[queue[i]]) {
+      const { a, b } = edges[edgeId];
+      const next = a === queue[i] ? b : a;
       if (parent[next] === -1) {
         parent[next] = queue[i];
         queue.push(next);
@@ -222,7 +224,7 @@ function prepare(cell: Cell) {
     color: colorAt(pigment, 1),
     waveHighlight: "",
     hue: toHsl(pigment),
-    contacts, parent, pickGroups,
+    contacts, incident, pickGroups,
     shape,
     axisTip,
     points,
@@ -236,9 +238,9 @@ function prepare(cell: Cell) {
 type Neuron = ReturnType<typeof prepare>;
 type Pulse = { neuron: Neuron; signal: Signal; born: number; duration: number };
 type Hit = { neuron: Neuron; edgeIndex: number; fraction: number; onSoma?: boolean };
-type Flight = ReturnType<typeof measurePath> & {
-  from: Neuron; to: Neuron; born: number; duration: number;
-};
+type Pattern = ReturnType<typeof traceArbor>;
+type Bridge = { from: Neuron; start: Point3; end: Point3; born: number; duration: number };
+type Front = { cell: Neuron; pattern: Pattern; born: number; bridge?: Bridge };
 type Spread = {
   nodes: ReturnType<typeof planSpread<Neuron>>;
   limit: number;
@@ -305,7 +307,9 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     }
   }
   applyMaterials();
-  let flights: Flight[] = [], inputs: Flight[] = [], spreads: Spread[] = [];
+  let flights: Front[] = [], inputs: Front[] = [], spreads: Spread[] = [];
+  let stillFront: Front | undefined;
+  let lastPattern: { cell: Neuron; stimulus: Stimulus; pattern: Pattern } | undefined;
   let lastTap = -Infinity, charge = 0, holdViewUntil = 0;
   let stillCells: Neuron[] = [];
   let stillTimer = 0;
@@ -765,12 +769,6 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     paintStimulus();
   }
 
-  function makeFlight(from: Neuron, to: Neuron, path: Point3[]): Flight {
-    const measured = measurePath(path);
-    const duration = measured.length ? Math.min(0.82, 0.09 + measured.length / 235) : 0;
-    return { ...measured, from, to, born: clock, duration };
-  }
-
   function lightSoma(n: Neuron, intensity: number) {
     const p = project(n.cell.soma);
     const r = (n.cell.radius * p.size + 3) * 1.65;
@@ -783,72 +781,114 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     ctx.fill();
   }
 
-  function drawFlight(f: Flight) {
-    const age = clock - f.born;
-    const landed = age - f.duration;
-    if (landed >= 0) {
-      lightSoma(f.to, Math.max(0, 1 - landed / 0.34) ** 2);
+  function drawBridge(front: Front, bridge: Bridge) {
+    const head = Math.min(1, (clock - bridge.born) / bridge.duration);
+    const tail = Math.max(0, head - 0.46);
+    const a = project(between(bridge.start, bridge.end, tail));
+    const b = project(between(bridge.start, bridge.end, head));
+    const ink = (t: number) => transferColor(bridge.from.hue, front.cell.hue, t);
+    const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    gradient.addColorStop(0, ink(tail));
+    gradient.addColorStop(0.5, ink((tail + head) / 2));
+    gradient.addColorStop(1, ink(head));
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = gradient;
+    ctx.lineCap = "round";
+    ctx.lineWidth = 4.2; ctx.globalAlpha = 0.21; ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.globalAlpha = 0.97; ctx.stroke();
+  }
+
+  const cablePoint = { x: 0, y: 0, z: 0 };
+  const cableScreen = { x: 0, y: 0, z: 0, size: 1 };
+  function projectCable(a: Point3, b: Point3, t: number) {
+    cablePoint.x = a.x + (b.x - a.x) * t;
+    cablePoint.y = a.y + (b.y - a.y) * t;
+    cablePoint.z = a.z + (b.z - a.z) * t;
+    return project(cablePoint, cableScreen);
+  }
+
+  // Only visit cable pieces whose travel times intersect this frame. All
+  // illuminated branches share one stroke path and two paint passes per cell.
+  function drawCables(front: Front, tail: number, head: number, still: boolean) {
+    const { bands, longest } = front.pattern;
+    let lo = 0, hi = bands.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (bands[mid].start < tail - longest) lo = mid + 1;
+      else hi = mid;
+    }
+    let pieces = 0;
+    ctx.beginPath();
+    for (let i = lo; i < bands.length; i++) {
+      const b = bands[i];
+      if (b.start >= head) break;
+      if (b.end <= tail) continue;
+      const rate = (b.to - b.from) / (b.end - b.start);
+      const f = b.from + (Math.max(b.start, tail) - b.start) * rate;
+      const t = b.from + (Math.min(b.end, head) - b.start) * rate;
+      const p = front.cell.points[b.a], q = front.cell.points[b.b];
+      const a = projectCable(p, q, f);
+      ctx.moveTo(a.x, a.y);
+      const z = projectCable(p, q, t);
+      ctx.lineTo(z.x, z.y);
+      pieces++;
+    }
+    if (!pieces) return;
+    ctx.lineCap = ctx.lineJoin = "round";
+    ctx.strokeStyle = front.cell.color;
+    ctx.lineWidth = still ? 3.2 : 4.2;
+    ctx.globalAlpha = still ? 0.14 : 0.22;
+    ctx.stroke();
+    ctx.strokeStyle = front.cell.waveHighlight;
+    ctx.lineWidth = still ? 1 : 1.45;
+    ctx.globalAlpha = still ? 0.67 : 0.96;
+    ctx.stroke();
+  }
+
+  function drawFront(front: Front) {
+    const { cell, pattern } = front, age = clock - front.born;
+    if (age < 0) {
+      if (front.bridge) drawBridge(front, front.bridge);
       return;
     }
-    const head = age / f.duration * f.length;
-    const tail = Math.max(0, head - Math.min(24, f.length * 0.45));
-    let i = 1;
-    while (i < f.distance.length - 1 && f.distance[i] < tail) i++;
-    const sample = (index: number, d: number) => project(between(
-      f.points[index - 1], f.points[index],
-      (d - f.distance[index - 1]) / (f.distance[index] - f.distance[index - 1]),
-    ));
-    const a = sample(i, tail);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    while (i < f.distance.length - 1 && f.distance[i] < head) {
-      const p = project(f.points[i++]);
-      ctx.lineTo(p.x, p.y);
+    drawCables(front, (age - 0.22) * pattern.speed, age * pattern.speed, false);
+    if (age < 0.20) {
+      const p = project(pattern.origin), r = 6 * p.size;
+      ctx.globalAlpha = 0.9 * (1 - age / 0.20);
+      ctx.drawImage(halos.get(cell.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
     }
-    const b = sample(i, head);
-    ctx.lineTo(b.x, b.y);
-    const color = (d: number) => transferColor(f.from.hue, f.to.hue, d / f.length);
-    ctx.strokeStyle = f.from.waveHighlight;
-    if (f.from !== f.to && head > tail) {
-      const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-      gradient.addColorStop(0, color(tail));
-      gradient.addColorStop(0.5, color((tail + head) / 2));
-      gradient.addColorStop(1, color(head));
-      ctx.strokeStyle = gradient;
-    }
-    ctx.lineCap = ctx.lineJoin = "round";
-    ctx.globalAlpha = 0.20;
-    ctx.lineWidth = 4.5;
-    ctx.stroke();
-    ctx.globalAlpha = 0.96;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.fillStyle = f.from === f.to ? f.from.waveHighlight : color(head);
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, 1.2, 0, Math.PI * 2);
-    ctx.fill();
+    const landed = age - pattern.distance[cell.somaIndex] / pattern.speed;
+    if (landed >= 0 && landed < 0.34) lightSoma(cell, (1 - landed / 0.34) ** 2);
   }
 
   function paintStimulus() {
-    const alive = (f: Flight) => clock < f.born + f.duration + 0.34;
+    const alive = (f: Front) => clock < f.born + f.pattern.extent / f.pattern.speed + 0.34;
     if (inputs.length) inputs = inputs.filter(alive);
     if (flights.length) flights = flights.filter(alive);
-    // Unlaunched relays wait for a slot, even when the entire field is recruited.
     for (const spread of spreads) {
-      if (paused || motion.matches || !spread.pending || clock < spread.nextLaunch || flights.length >= (touchDevice ? 12 : 18)) continue;
+      if (paused || motion.matches || !spread.pending || clock < spread.nextLaunch || flights.length >= (touchDevice ? 10 : 14)) continue;
       for (let i = 1; i < spread.limit; i++) {
         const node = spread.nodes[i], parent = spread.nodes[node.parent];
-        if (Number.isFinite(node.arrival) || parent.arrival > clock) continue;
-        const flight = makeFlight(parent.cell, node.cell, relayPath(parent.cell, node.cell));
-        flights.push(flight);
-        node.arrival = clock + flight.duration;
+        if (node.timing || !parent.timing || parent.arrival > clock) continue;
+        const { exit, entry } = node.contact ??= relayContact(parent.cell, node.cell, parent.timing.distance);
+        if (clock < parent.arrival + parent.timing.distance[exit] / parent.timing.speed) continue;
+        const start = parent.cell.points[exit], end = node.cell.points[entry];
+        const gap = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
+        const duration = gap ? Math.min(0.55, 0.12 + gap / 235) : 0;
+        const pattern = traceArbor(node.cell, { node: entry });
+        node.arrival = clock + duration;
+        node.timing = { distance: pattern.distance, speed: pattern.speed };
+        flights.push({ cell: node.cell, pattern, born: node.arrival,
+          bridge: { from: parent.cell, start, end, born: clock, duration } });
         spread.pending--;
         spread.nextLaunch = clock + 0.038;
         break;
       }
     }
-    for (const f of inputs) drawFlight(f);
-    for (const f of flights) drawFlight(f);
+    for (const front of flights) drawFront(front);
+    for (const front of inputs) drawFront(front);
+    if (stillFront) drawCables(stillFront, 0, stillFront.pattern.extent + 1, true);
     for (const cell of stillCells) lightSoma(cell, 0.74);
     ctx.globalAlpha = 1;
   }
@@ -889,7 +929,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       charge = 0; lastTap = -Infinity;
     }
     if (!paused && !motion.matches && stillCells.length) {
-      stillCells = []; spreads = [];
+      stillFront = undefined; stillCells = []; spreads = [];
       window.clearTimeout(stillTimer);
     }
     playback.hidden = motion.matches;
@@ -963,20 +1003,19 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     return front;
   }
   function pick(point: { x: number; y: number }) {
-    let hit: Hit | undefined;
-    let best = Infinity,
-      front = -Infinity,
-      covered = false;
+    // A narrow crossing fiber should not steal a tap inside a cell body.
+    // Where two somas overlap, choose the nearest actual mesh surface.
+    let soma: Neuron | undefined, somaDepth = -Infinity;
+    for (const neuron of sorted) {
+      const z = surfaceDepth(neuron, point);
+      if (z > somaDepth) { soma = neuron; somaDepth = z; }
+    }
+    if (soma) return { neuron: soma, edgeIndex: 0, fraction: 0, onSoma: true };
+
+    let hit: Hit | undefined, best = Infinity, front = -Infinity, covered = false;
     const center3 = { x: 0, y: 0, z: 0, size: 1 };
     const pa = { ...center3 }, pb = { ...center3 };
     for (const neuron of sorted) {
-      const meshDepth = surfaceDepth(neuron, point);
-      if (Number.isFinite(meshDepth) && (!covered || meshDepth > front)) {
-        front = meshDepth;
-        covered = true;
-        best = 0;
-        hit = { neuron, edgeIndex: 0, fraction: 0, onSoma: true };
-      }
       for (const group of neuron.pickGroups) {
         const c = project(group.center, center3);
         // Bound perspective magnification at the near side of this sphere,
@@ -1036,13 +1075,22 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     lastTap = now;
     const continuing = interval < 1.5;
     charge = nextCharge(continuing ? charge : 0, interval);
-    const flight = makeFlight(n, n, inputPath(n, n.edges[hit.edgeIndex], hit.fraction, !!hit.onSoma));
+    const origin: Stimulus = hit.onSoma ? { node: n.somaIndex } :
+      { edge: hit.edgeIndex, fraction: hit.fraction };
+    const cached = lastPattern?.cell === n ? lastPattern : undefined;
+    const same = cached && ("node" in origin
+      ? "node" in cached.stimulus && origin.node === cached.stimulus.node
+      : "edge" in cached.stimulus && origin.edge === cached.stimulus.edge && origin.fraction === cached.stimulus.fraction);
+    const pattern = same ? cached.pattern : traceArbor(n, origin);
+    lastPattern = { cell: n, stimulus: origin, pattern };
+    const front: Front = { cell: n, born: clock, pattern };
 
     let spread = spreads[spreads.length - 1];
     const replay = spread && !spread.pending && recruitedCount(spread.nodes, charge) <= spread.limit;
-    if (!continuing || !spread || replay) {
+    if (!continuing || !spread || spread.nodes[0].cell !== n || replay) {
       const nodes = planSpread(n, neurons);
-      nodes[0].arrival = clock + flight.duration;
+      nodes[0].arrival = clock;
+      nodes[0].timing = { distance: pattern.distance, speed: pattern.speed };
       spread = { nodes, limit: 1, pending: 0, nextLaunch: nodes[0].arrival };
       spreads = [...spreads.filter(s => s.pending).slice(-1), spread];
     }
@@ -1050,15 +1098,17 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     spread.pending += limit - spread.limit;
     spread.limit = limit;
     if (motion.matches || paused) {
+      stillFront = front;
       stillCells = [...new Set([n, ...spread.nodes.slice(0, limit).map(node => node.cell)])];
       window.clearTimeout(stillTimer);
-      stillTimer = window.setTimeout(() => { stillCells = []; spreads = []; paint(); }, 900);
+      stillTimer = window.setTimeout(() => { stillFront = undefined; stillCells = []; spreads = []; paint(); }, 900);
       paint();
       return;
     }
     // Hold the view briefly so a second tap can stay on the same moving fiber.
     holdViewUntil = clock + 0.55;
-    inputs = [...inputs.slice(-2), flight];
+    if (inputs.length >= 4) inputs.splice(1, 1);
+    inputs.push(front);
     play();
   }
 
