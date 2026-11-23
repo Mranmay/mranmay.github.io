@@ -1,72 +1,44 @@
 ---
-title: "Calcium Dynamics Models: From Spikes to Fluorescence"
-description: "Give two models the same pair of spikes and their calcium traces can look quite different. A five-frame example shows why."
+title: "A new method of spike deconvolution from calcium imaging?"
+description: "While comparing spike-inference methods during my MSc, I wondered what would happen if a model could give several plausible answers for the same fluorescence trace. I’ve been building one called XYBER."
 pubDate: 2026-03-23
-updatedDate: 2026-11-20
+updatedDate: 2026-11-23
 author: Mranmay Shetty
-tags: ["Calcium imaging", "Dynamical systems"]
+tags: ["Calcium imaging", "Spike inference"]
 ---
 
-During my MSc internship at the Institut de Neurosciences de la Timone and Inria, I worked with paired electrical and optical recordings from mouse visual cortex. For the same neuron I could see the spike times recorded by an electrode and the fluorescence recorded by a two-photon microscope. If two spikes arrived close together, how much of the second fluorescence peak came from calcium left over from the first?
+Last semester I worked with Laurent Perrinet at the Institut de Neurosciences de la Timone and Bruno Cessac at Inria on spike inference and motif discovery. In one part of the project, I had two recordings of the same mouse visual cortex neuron. An electrode told me when it fired. The microscope showed a fluorescent trace that rose and gradually fell. Cover up the electrode trace and a surprisingly hard question remains. How many spikes made that bump? [Allen Institute paired recordings](https://brain-map.org/our-research/circuits-behavior/ophys-ephys-calibration-data)
 
-That question also motivates my independent work on calcium dynamics. I start by running the problem forward. I take the spikes as given, choose a model for how calcium and the indicator respond, and predict the optical trace. Then I can ask which parts of the measured waveform that model could plausibly explain. The [Allen Institute calibration dataset](https://brain-map.org/our-research/circuits-behavior/ophys-ephys-calibration-data) has these paired recordings from layer 2/3 pyramidal neurons expressing GCaMP6s or GCaMP6f.
+## Why I wanted to try combining two approaches
 
-## What the decay parameter measures
+One of the methods I tried was OASIS. It starts with a little bit of biophysics. A spike raises the calcium signal, and some of that signal is still there in the next frame. In the simplest version, if a spike adds one unit and 80% remains at each frame, a second spike two frames later brings the signal to 1.64. OASIS works backwards from the measured trace, looking for a sparse set of positive inputs that, given the assumed decay, could account for it. I like that I can point to the falling side of a bump and say what the model thinks is happening there. [OASIS paper](https://doi.org/10.1371/journal.pcbi.1005423)
 
-A simple model adds a fixed amount of calcium for each spike. Between imaging frames, a fraction of the previous frame's calcium remains. If $s_t$ is the number of spikes in frame $t$, the update is
+CASCADE takes a different route. It sees windows of fluorescence paired with firing rates derived from electrical recordings. Its five trainable layers comprise three temporal convolutions, a dense layer and an output layer. The network gets to learn which shapes tend to accompany firing without anyone specifying a calcium-decay equation. The physics still shapes every training example. It just doesn’t have to be written into the network. [CASCADE paper](https://doi.org/10.1038/s41593-021-00895-5)
 
-$$
-c_t = \gamma c_{t-1} + A s_t.
-$$
-
-Here $A$ is the calcium increment per spike and $\gamma$ is the fraction remaining one frame later. For an exponential decay with time constant $\tau_d$ and an imaging interval $\Delta t$, the fraction remaining is $\gamma=\exp(-\Delta t/\tau_d)$. The same cell and indicator will therefore have a different per-frame decay factor if I resample the trace.
-
-Calcium is a hidden quantity in this calculation. A linear observation model predicts the measured fluorescence as $F_t=F_0+\alpha c_t+\epsilon_t$. Here $F_0$ is the baseline, $\alpha$ converts a calcium increment into fluorescence units, and $\epsilon_t$ accounts for measurement noise. Subtracting the baseline and dividing by it gives the familiar $\Delta F/F_0$ trace.
-
-## Two spikes, two decay rates
-
-Start with zero calcium. Give the model one spike in frame 1 and another in frame 3, both with $A=1$. These are simulated values in arbitrary units. The only thing I change is the fraction of calcium retained between frames.
-
-| Frame | Spike count | Calcium with 50% retained | Calcium with 80% retained |
-| --- | ---: | ---: | ---: |
-| 1 | 1 | 1.00 | 1.00 |
-| 2 | 0 | 0.50 | 0.80 |
-| 3 | 1 | 1.25 | 1.64 |
-| 4 | 0 | 0.63 | 1.31 |
-| 5 | 0 | 0.31 | 1.05 |
-
-Look at frame 5. The slower-decaying signal still exceeds the size of the first peak, two frames after the last spike. With the faster decay, it has already fallen to about a third of that peak. The difference comes entirely from how the model carries past activity into the present.
-
-## What changes when the indicator takes time to respond?
-
-The update above jumps as soon as a spike arrives. A finite-rise response builds up before it decays. One way to represent that is to add a copy of this response after each spike, once $u$ time units have elapsed.
-
-$$
-h(u)=K\left(e^{-u/\tau_d}-e^{-u/\tau_r}\right),\qquad 0<\tau_r<\tau_d.
-$$
-
-At the spike itself, $h(0)=0$. The fast term then falls away more quickly, and the response reaches its peak some time after the spike. $K$ sets its amplitude. An algorithm that treats the observed peak time as the spike time would place the spike late in this example.
-
-A saturating indicator introduces a different ambiguity. A Hill response scales fluorescence with $c^n/(K_d^n+c^n)$, where $K_d$ is the calcium level giving half of the maximum signal. Two identical calcium increments can then produce different fluorescence increments depending on how much calcium was already present. Near saturation, even a substantial increase in calcium can yield little extra fluorescence. Published forward models such as MLspike combine calcium decay with indicator response, baseline and noise. [Example using MLspike on Allen recordings](https://pmc.ncbi.nlm.nih.gov/articles/PMC8285106/)
-
-## What I look for in paired recordings
-
-I would first compare an isolated electrical spike with its optical transient. The delay to peak probes the rise term, while the falling portion constrains the decay. Closely spaced spikes ask a different question. Once I know the isolated response, does adding two copies predict the burst's peak and tail? A consistent error in burst height would be a reason to examine the observation model. I would also check baseline drift and noise before attributing that error to saturation.
-
-This distinction matters when going backwards to estimate spikes. In the noiseless linear model, subtracting $\gamma c_{t-1}$ from $c_t$ recovers the new input. With the wrong decay, some signal from an earlier spike survives that subtraction. With finite rise, a spike contributes to the rise over several frames. A plausible-looking reconstructed fluorescence trace can therefore coexist with a poorly timed spike estimate. Paired recordings let me check both.
-
-[Read the Allen calibration study](https://pubmed.ncbi.nlm.nih.gov/33683198/) · [Read about exponential decay and finite rise times](https://pmc.ncbi.nlm.nih.gov/articles/PMC4881387/)
+While I was doing that comparison, I kept coming back to a question. Why not let a network suggest a few plausible spike trains, run each one through a model of how spikes produce fluorescence, and see which ones could have made the trace I actually recorded? That was the idea I later described in my UCL research statement. It also mattered for the motif part of my MSc. If several spike timings fit the recording equally well, I’d want to know that before calling a sequence of cells a repeating pattern.
 
 ## From a fluorescence trace back to spike times
 
-I’m developing XYBER independently to work in the other direction. Given a stretch of fluorescence, my model estimates how many spikes could have occurred in each frame. Several spike trains can be consistent with one optical signal. I use those possibilities to choose a single set of event times, which I can then compare with the electrical recording.
+I started working on that idea independently. My model is called **XYBER**, short for **eXtracting spike times bY Bayes-risk Event Reconstruction**. The part I’ve built so far tackles a decision that comes before the fluorescence check. Once I have several plausible trains, which spike times should I actually report?
+
+Say the evidence supports one spike somewhere in three adjacent frames. Each frame on its own might look too uncertain to call. Threshold them separately and I could report zero spikes, even though almost every plausible explanation contains one. That’s the sort of mistake I wanted XYBER to handle.
+
+XYBER takes eight seconds of fluorescence at a time and estimates a distribution over spike counts in each frame, taking into account whether the preceding two frames contained a spike. It draws 256 possible trains and keeps the middle four seconds of each window. To report events, it looks for a train that incurs a small average penalty across those draws. A missed spike costs something, an extra spike costs something, and a small timing error costs less. That decision is what “Bayes-risk” means in the name. Checking the candidate trains against a forward model of fluorescence is still an open part of my original idea.
 
 <figure>
-  <a href="/images/posts/calcium-dynamics-models/xyber-architecture.webp"><img src="/images/posts/calcium-dynamics-models/xyber-architecture.webp" width="1440" height="484" loading="lazy" decoding="async" alt="Diagram showing fluorescence and recording features entering XYBER, which estimates spike counts and selects event times from sampled trains." /></a>
-  <figcaption>My model uses an eight-second fluorescence window to report a firing rate and individual event times for the middle four seconds.</figcaption>
+  <a href="/images/posts/calcium-dynamics-models/xyber-architecture.webp"><img src="/images/posts/calcium-dynamics-models/xyber-architecture.webp" width="1440" height="484" loading="lazy" decoding="async" alt="XYBER uses an eight-second fluorescence window to estimate framewise spike counts, sample possible trains and choose event times." /></a>
+  <figcaption>The same count estimates give me a firing rate and a set of individual spike times. I can check each against the electrode.</figcaption>
 </figure>
 
+## Where it works, and where I still get it wrong
+
+I’ve tested XYBER retrospectively on paired optical and electrical recordings from four indicator profiles. The clearest result so far is on GCaMP8m. Counting a prediction as a match if it falls within 50 milliseconds of a recorded spike, XYBER reached an event F1 of **0.912**, compared with **0.888** for my local ENS² baseline. F1 takes both missed spikes and extra detections into account. These are results for the implementations and recordings I tested.
+
+GCaMP8s is the example I keep coming back to. In the lower panel below, the electrode recorded **15 spikes**. Two separately trained runs of XYBER reported **22 and 49** from the very same fluorescence. Changing how I normalized unusually large optical signals helped with overcounting, but that gap between runs is still there. Across the GCaMP8s groups, XYBER’s 50-ms F1 was 0.852 and ENS² reached 0.869.
+
 <figure>
-  <a href="/images/posts/calcium-dynamics-models/xyber-examples.webp"><img src="/images/posts/calcium-dynamics-models/xyber-examples.webp" width="1440" height="947" loading="lazy" decoding="async" alt="Two fluorescence traces above their electrically recorded spike times and the events inferred by XYBER and three other methods." /></a>
-  <figcaption>Two example recordings. Read down each column from the measured fluorescence to the electrode’s spike times, then to the events each model inferred.</figcaption>
+  <a href="/images/posts/calcium-dynamics-models/xyber-examples.webp"><img src="/images/posts/calcium-dynamics-models/xyber-examples.webp" width="1440" height="947" loading="lazy" decoding="async" alt="Two paired recordings. In the lower panel the electrode records 15 spikes and two XYBER runs report 22 and 49." /></a>
+  <figcaption>Start with the electrical spike times beneath each fluorescence trace, then look down the rows at the model outputs. The extra events in the lower panel are easier to see here than in an average score.</figcaption>
 </figure>
+
+What I’d like to know next is whether a fluorescence check would actually catch a case like those 49 spikes. I can feed those event times into a forward model and ask what trace they imply. If that trace looks much like the one predicted by 15 spikes, I’ve learned something about what the recording can resolve. If it looks wildly different, I have a reason to question the extra events.
