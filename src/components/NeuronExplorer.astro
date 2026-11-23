@@ -15,7 +15,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
     disabled
   >
     <span class="field" aria-hidden="true">
-      <span class="volume-poster"></span>
+      <noscript><span class="fallback-art"></span></noscript>
       <canvas class="volume-geometry"></canvas>
       <canvas class="volume-activity"></canvas>
     </span>
@@ -66,7 +66,8 @@ import volumeUrl from "@/data/microns-volume.json?url";
         }),
       ]).then(async ([activity, decoder, volume]) => {
         const ready = await activity.activateNeuron(figure, await decoder.decodeMicrons(volume));
-        if (!ready) return;
+        if (!ready) throw Error("Canvas unavailable");
+        figure.classList.remove("scene-unavailable");
         scene = ready;
         scene.setPaused(paused);
         if (!document.hidden && shown) {
@@ -77,7 +78,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
           }
         }
       }).catch(() => {
-        // The initial tissue image remains available. The next gesture can retry.
+        figure.classList.add("scene-unavailable");
       }).finally(() => { loading = undefined; taps.length = 0; });
     }
     function syncPlayback() {
@@ -96,11 +97,13 @@ import volumeUrl from "@/data/microns-volume.json?url";
     motion.addEventListener("change", syncPlayback);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) { taps.length = 0; down = undefined; }
+      else if (shown) start();
       syncPlayback();
     });
     new IntersectionObserver(([entry]) => {
       shown = entry.isIntersecting;
       if (!shown) { taps.length = 0; down = undefined; }
+      else if (!document.hidden) start();
       syncPlayback();
     }).observe(figure);
 
@@ -189,7 +192,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
     cursor: default;
   }
   .field,
-  .volume-poster,
+  .fallback-art,
   canvas {
     display: block;
     position: absolute;
@@ -198,16 +201,17 @@ import volumeUrl from "@/data/microns-volume.json?url";
     height: 100%;
     pointer-events: none;
   }
-  /* The poster and click overlay move as one layer so hit testing stays aligned. */
+  /* On software-rendered devices, move the two live canvases together between gestures. */
   @keyframes tissue-drift {
     from { transform: translate(-0.45%, 0.20%) scale(1.012); }
     to { transform: translate(0.45%, -0.20%) scale(1.012); }
   }
   @media (prefers-reduced-motion: no-preference) {
-    .field { animation: tissue-drift 15s ease-in-out infinite alternate; }
+    .software-rendered .field { animation: tissue-drift 15s ease-in-out infinite alternate; }
   }
   .playback[hidden] { display: none; }
-  .volume-poster {
+  .fallback-art,
+  .scene-unavailable .field {
     background: var(--field-matte) url("/images/microns-tissue-glow-dark.webp")
       center/cover no-repeat;
     background-image: image-set(
@@ -215,7 +219,8 @@ import volumeUrl from "@/data/microns-volume.json?url";
       url("/images/microns-tissue-glow-dark.webp") type("image/webp")
     );
   }
-  :global([data-theme="light"]) .volume-poster {
+  :global([data-theme="light"]) .fallback-art,
+  :global([data-theme="light"]) .scene-unavailable .field {
     background-image: url("/images/microns-tissue-luminous-light.webp");
     background-image: image-set(
       url("/images/microns-tissue-luminous-light.avif") type("image/avif"),
@@ -236,9 +241,6 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .ready .volume-activity,
   .with-gpu .volume-geometry {
     visibility: visible;
-  }
-  .ready:not(.poster-active) .volume-poster {
-    display: none;
   }
   .playback {
     position: absolute;

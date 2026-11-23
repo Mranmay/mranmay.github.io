@@ -1,6 +1,6 @@
 import type { Cell, Point3 } from "@/data/dendrites";
 import { mapCells } from "../data/neuron-scheduling";
-import type { initNeuronGL } from "./neuron-gl";
+import { initNeuronGL } from "./neuron-gl";
 import {
   cellMaterial,
   endpointRadii,
@@ -249,12 +249,14 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const context = canvas.getContext("2d");
   if (!context) return;
   const ctx = context;
-  let gpu: Awaited<ReturnType<typeof initNeuronGL>> = null;
-  let rotatingScene: Promise<void> | undefined;
-  let posterActive = true;
-  figure.classList.add("poster-active");
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const neurons = await mapCells(cells, prepare);
+  const [renderer, neurons] = await Promise.all([
+    initNeuronGL(glCanvas, cells).catch(() => null),
+    mapCells(cells, prepare),
+  ]);
+  let gpu = renderer;
+  figure.classList.toggle("with-gpu", Boolean(gpu));
+  figure.classList.toggle("software-rendered", !gpu);
   const sorted = neurons.slice();
   const featured = neurons.filter(n => n.material.emission > 0);
   const halos = new Map<string, HTMLCanvasElement>();
@@ -281,6 +283,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   let stillCells: Neuron[] = [];
   let stillTimer = 0;
   let yaw = initialYaw, pitch = initialPitch, clock = 0, cycle = 0;
+  let driftTime = 0, holdViewUntil = 0;
   let visible = true, paused = false, frame = 0, drawn = -Infinity,
     scale = 1,
     offsetX = 0,
@@ -591,7 +594,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     buffer.globalAlpha = 1;
   }
   function geometry(force = false) {
-    const a = yaw, b = pitch;
+    const a = yaw + Math.sin(driftTime * 0.11) * 0.21;
+    const b = pitch + Math.sin(driftTime * 0.072) * 0.10;
     // Reuse the tissue while only the click overlay is moving.
     const threshold = gpu ? (touchDevice ? 0.0021 : 0.00065) : 0.0027;
     if (
@@ -607,7 +611,6 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     lastPitch = b;
     project = camera(a, b);
     epoch++;
-    if (posterActive) return;
     if (gpu) {
       gpu.draw(a, b, scale, offsetX, offsetY, fiberScale, lightTheme);
       return;
@@ -788,13 +791,19 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     frame = 0;
     if (!visible || document.hidden || scrolling) return;
     clock = time / 1000;
-    if (!viewPending && time - drawn < 1000 / 30 - 0.5 && clock < endsAt) {
+    const active = inputs.length || flights.length || spreads.length || stillFront;
+    const drifting = gpu && !paused && !motion.matches;
+    const interval = active ? 1000 / 30 : 1000 / 20;
+    if (!viewPending && time - drawn < interval - 0.5) {
       play();
       return;
     }
+    if (drifting && clock >= holdViewUntil && Number.isFinite(drawn))
+      driftTime += Math.min(0.09, (time - drawn) / 1000);
     drawn = time;
-    paint();
-    if (viewPending || (!paused && !motion.matches &&
+    if (active) paint();
+    else geometry();
+    if (drifting || viewPending || (!paused && !motion.matches &&
         (inputs.length || flights.length || spreads.some(s => s.pending)))) play();
   }
   function play() {
@@ -952,6 +961,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     const n = hit.neuron;
     const interval = tapTime - lastTap;
     lastTap = tapTime;
+    holdViewUntil = clock + 0.55;
     endsAt = clock + burstDuration;
     canvas.style.opacity = "";
     const continuing = interval < 1.5;
@@ -991,18 +1001,11 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     play();
   }
 
-  async function enableRotation() {
-    try {
-      const { initNeuronGL } = await import("./neuron-gl");
-      gpu = await initNeuronGL(glCanvas, cells);
-    } catch {
-      gpu = null;
-    }
-    posterActive = false;
-    figure.classList.remove("poster-active");
-    figure.classList.toggle("with-gpu", Boolean(gpu));
-    lastYaw = NaN;
-    if (visible && !document.hidden) resize();
+  function resume() {
+    if (!visible || document.hidden) return;
+    resize();
+    if (viewPending || (gpu && !paused && !motion.matches) || inputs.length || flights.length || spreads.length)
+      play();
   }
   new MutationObserver(() => {
     const next = document.documentElement.dataset.theme === "light";
@@ -1015,10 +1018,10 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     attributes: true,
     attributeFilter: ["data-theme"],
   });
-  motion.addEventListener("change", stop);
+  motion.addEventListener("change", () => { stop(); resume(); });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) stop();
-    else if (visible) resize();
+    else resume();
   });
   window.addEventListener("scroll", () => {
     if (!visible || document.hidden) return;
@@ -1026,12 +1029,12 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       scrolling = true;
       cancelAnimationFrame(frame);
       frame = 0;
-
+      drawn = -Infinity;
     }
     window.clearTimeout(scrollTimer);
     scrollTimer = window.setTimeout(() => {
       scrolling = false;
-      if (inputs.length || flights.length || spreads.length || viewPending) play();
+      resume();
     }, 120);
   }, { passive: true });
   glCanvas.addEventListener("webglcontextlost", (event) => {
@@ -1039,6 +1042,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     if (!gpu) return;
     gpu = null;
     figure.classList.remove("with-gpu");
+    figure.classList.add("software-rendered");
     lastYaw = NaN;
     resize();
     play();
@@ -1047,9 +1051,9 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting;
     if (!visible) stop();
-    else resize();
+    else resume();
   }).observe(figure);
-  resize();
+  resume();
   figure.classList.add("ready");
   return {
     tap(x: number, y: number, time: number) {
@@ -1065,12 +1069,13 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       yaw = initialYaw + x;
       pitch = y;
       viewPending = true;
-      rotatingScene ??= enableRotation();
-      if (!posterActive) play();
+      holdViewUntil = performance.now() / 1000 + 0.55;
+      play();
     },
     setPaused(value: boolean) {
       paused = value;
       stop();
+      resume();
     },
   };
 }
