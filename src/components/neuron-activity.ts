@@ -8,12 +8,13 @@ import {
   somaAxes,
 } from "./neuron-style";
 import {
-  between, nextCharge, planSpread, recruitedCount, relayContact, traceArbor,
+  between, nextCharge, planSpread, pulseTravelRate, recruitedCount, relayContact, traceArbor,
   toHsl, transferColor, type Stimulus,
 } from "./neuron-wave";
 
 const W = 640,
   H = 405;
+const pulseHaloWidth = 3.5, pulseCoreWidth = 1.2;
 const initialYaw = -0.23,
   initialPitch = 0.19;
 function camera(yaw: number, pitch: number) {
@@ -672,8 +673,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.strokeStyle = gradient;
     ctx.lineCap = "round";
-    ctx.lineWidth = 4.2; ctx.globalAlpha = 0.21; ctx.stroke();
-    ctx.lineWidth = 1.5; ctx.globalAlpha = 0.97; ctx.stroke();
+    ctx.lineWidth = pulseHaloWidth; ctx.globalAlpha = 0.21; ctx.stroke();
+    ctx.lineWidth = pulseCoreWidth; ctx.globalAlpha = 0.97; ctx.stroke();
   }
 
   const cablePoint = { x: 0, y: 0, z: 0 };
@@ -714,11 +715,11 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     if (!pieces) return;
     ctx.lineCap = ctx.lineJoin = "round";
     ctx.strokeStyle = front.cell.color;
-    ctx.lineWidth = still ? 3.2 : 4.2;
+    ctx.lineWidth = still ? 2.7 : pulseHaloWidth;
     ctx.globalAlpha = still ? 0.14 : 0.22;
     ctx.stroke();
     ctx.strokeStyle = front.cell.waveHighlight;
-    ctx.lineWidth = still ? 1 : 1.45;
+    ctx.lineWidth = still ? 0.85 : pulseCoreWidth;
     ctx.globalAlpha = still ? 0.67 : 0.96;
     ctx.stroke();
   }
@@ -765,7 +766,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         if (clock < parent.arrival + parent.timing.distance[exit] / parent.timing.speed) continue;
         const start = parent.cell.points[exit], end = node.cell.points[entry];
         const gap = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
-        const duration = gap ? Math.max(0.065, Math.min(0.55, 0.12 + gap / 235) / rate) : 0;
+        const duration = gap ? Math.max(0.065, Math.min(0.55, 0.12 + gap / 235) / rate) / pulseTravelRate : 0;
         const pattern = traceArbor(node.cell, { node: entry });
         pattern.speed *= rate;
         node.arrival = clock + duration;
