@@ -15,7 +15,7 @@ One of the methods I tried was OASIS. It starts with a little bit of biophysics.
 
 CASCADE takes a different route. It sees windows of fluorescence paired with firing rates derived from electrical recordings. Its five trainable layers comprise three temporal convolutions, a dense layer and an output layer. The network gets to learn which shapes tend to accompany firing without anyone specifying a calcium-decay equation. The physics still shapes every training example. It just doesn’t have to be written into the network. [CASCADE paper](https://doi.org/10.1038/s41593-021-00895-5)
 
-While I was doing that comparison, I kept coming back to a question. Why not let a network suggest a few plausible spike trains, run each one through a model of how spikes produce fluorescence, and see which ones could have made the trace I actually recorded? That was the idea I later described in my UCL research statement. It also mattered for the motif part of my MSc. If several spike timings fit the recording equally well, I’d want to know that before calling a sequence of cells a repeating pattern.
+While I was doing that comparison, I kept coming back to a question. Why not let a network suggest a few plausible spike trains, run each one through a model of how spikes produce fluorescence, and see which ones could have made the trace I actually recorded? It also mattered for the motif part of my MSc. If several spike timings fit the recording equally well, I’d want to know that before calling a sequence of cells a repeating pattern.
 
 ## From a fluorescence trace back to spike times
 

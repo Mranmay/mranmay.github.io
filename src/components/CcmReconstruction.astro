@@ -1,88 +1,59 @@
 ---
 import { rosslerResults } from "@/data/rossler-ccm.mjs";
-
-const directions = ["Estimate x₁ from x₂", "Estimate x₂ from x₁"];
-const runs = rosslerResults();
-const x = (i: number) => 44 + 500 * i / 160;
-const y = (value: number) => 21 + (15 - value) * 5;
-const points = (trace: number[]) => trace.map((v, i) => x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
-const score = (rho: number) => rho > 0.999 ? "ρ > 0.999" : "ρ = " + rho.toFixed(3);
+const series = rosslerResults();
+const x = (size: number) => 48 + 460 * (size - 50) / 950;
+const y = (rho: number) => 172 - 145 * rho;
+const format = (rho: number) => rho > .999 ? "> 0.999" : rho.toFixed(3);
 ---
-<figure class="ccm-figure">
-  <figcaption><strong>Can you recover the missing coordinate?</strong></figcaption>
-  <ccm-reconstruction>
-    <div class="controls" hidden>
-      <label>Reconstruction
-        <select data-direction>{directions.map((name, index) => <option value={index}>{name}</option>)}</select>
-      </label>
-      <label>Library size
-        <select data-size>{runs[0].fits.map(fit => <option value={fit.size}>{fit.size} points</option>)}</select>
-      </label>
-    </div>
-    <div class="key"><span class="original">Simulated</span><span class="estimate">Reconstructed</span></div>
-    <svg viewBox="0 0 560 220" role="img" aria-label="Simulated and reconstructed oscillator coordinates across the same eight time units">
-      {[-10, 0, 10].map(tick => <g>
-        <line x1={x(0)} x2={x(160)} y1={y(tick)} y2={y(tick)} />
-        <text x="35" y={y(tick) + 5} text-anchor="end">{tick}</text>
-      </g>)}
-      {[0, 2, 4, 6, 8].map(tick => <text x={x(tick * 20)} y="184" text-anchor="middle">{tick}</text>)}
-      <text x="294" y="210" text-anchor="middle">Time within window (simulation units)</text>
-      {runs.map((run, index) => <g data-run={index} style={index ? "display:none" : undefined}>
-        <polyline class="truth" points={points(run.actual)} />
-        {run.fits.map((fit, j) => <polyline class="fit" data-library={fit.size} data-score={score(fit.rho)}
-          points={points(fit.trace)} style={j ? "display:none" : undefined} />)}
-      </g>)}
-    </svg>
-    <p class="score" aria-live="polite"><span>Full held-out correlation</span> <strong data-score-out>{score(runs[0].fits[0].rho)}</strong></p>
-  </ccm-reconstruction>
+<figure class="ccm">
+  <figcaption><strong>Cross-map skill as the library grows</strong></figcaption>
+  <p class="legend"><span>● Estimate x₁ from x₂ history</span><span>◇ Estimate x₂ from x₁ history</span></p>
+  <svg viewBox="0 0 545 224" role="img" aria-label="Correlation against library size. Both directions approach one by 321 points.">
+    {[0,.25,.5,.75,1].map(tick => <g><line x1="48" x2="508" y1={y(tick)} y2={y(tick)}/><text x="39" y={y(tick)+4} text-anchor="end">{tick}</text></g>)}
+    <text x="8" y="14">ρ</text>
+    {[50,321,728,1000].map(size => <text text-anchor="middle" x={x(size)} y="194">{size}</text>)}
+    <text x="278" y="218" text-anchor="middle">Library size (points)</text>
+    {series.map((fits, direction) => <g class={direction ? 'reverse' : 'forward'}>
+      <polyline points={fits.map(f => x(f.size)+','+y(f.rho)).join(' ')} />
+      {fits.map(f => direction
+        ? <path d={`M${x(f.size)} ${y(f.rho)-5}l5 5-5 5-5-5z`}/>
+        : <circle cx={x(f.size)} cy={y(f.rho)} r="3"/>)}
+    </g>)}
+    <line class="cursor" x1={x(50)} x2={x(50)} y1="18" y2="172"/>
+  </svg>
+  <label hidden>Inspect library size <select>{series[0].map(f => <option value={x(f.size)}>{f.size} points</option>)}</select></label>
+  <div aria-live="polite">{series[0].map((f,i) => <p hidden={i!==0} data-reading>At {f.size} points · x₁ from x₂: <b>{format(f.rho)}</b> · x₂ from x₁: <b>{format(series[1][i].rho)}</b></p>)}</div>
 </figure>
-
 <script>
-  class CcmReconstruction extends HTMLElement {
-    connectedCallback() {
-      const controls = this.querySelector<HTMLElement>(".controls")!;
-      const direction = controls.querySelector<HTMLSelectElement>("[data-direction]")!;
-      const size = controls.querySelector<HTMLSelectElement>("[data-size]")!;
-      const output = this.querySelector<HTMLElement>("[data-score-out]")!;
-      const draw = () => {
-        for (const group of this.querySelectorAll<SVGGElement>("[data-run]")) {
-          const active = group.dataset.run === direction.value;
-          group.style.display = active ? "" : "none";
-          if (!active) continue;
-          for (const curve of group.querySelectorAll<SVGPolylineElement>("[data-library]")) {
-            const selected = curve.dataset.library === size.value;
-            curve.style.display = selected ? "" : "none";
-            if (selected) output.textContent = curve.dataset.score!;
-          }
-        }
-      };
-      controls.onchange = draw;
-      draw();
-      controls.hidden = false;
+  for (const plot of document.querySelectorAll<HTMLElement>(".ccm")) {
+    const select = plot.querySelector("select")!;
+    const cursor = plot.querySelector(".cursor")!;
+    function update() {
+      for (const key of ["x1","x2"]) cursor.setAttribute(key,select.value);
+      plot.querySelectorAll<HTMLElement>("[data-reading]").forEach((p,i) => p.hidden = i !== select.selectedIndex);
     }
+    select.onchange = update;
+    update();
+    plot.querySelector("label")!.hidden = false;
   }
-  if (!customElements.get("ccm-reconstruction")) customElements.define("ccm-reconstruction", CcmReconstruction);
 </script>
-
 <style>
-  .ccm-figure { --fit: #f0b988; --truth: #97c8fa; border: 1px solid var(--rule); background: var(--panel); border-radius: 4px; padding: clamp(.85rem, 3vw, 1.55rem); }
-  :global([data-theme="light"]) .ccm-figure { --fit: #974317; --truth: #245883; }
-  .ccm-figure figcaption { text-align: left; font-size: 1.1rem; color: var(--ink); margin: 0 0 1rem; }
-  ccm-reconstruction { display: block; }
-  .controls, .key, .score { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; align-items: center; }
-  .controls[hidden] { display: none; }
-  label { display: grid; gap: .25rem; font-size: .9rem; color: var(--muted); }
-  select { min-height: 2.75rem; max-width: 100%; padding: .3rem .65rem; background: var(--panel); color: var(--ink); border: 1px solid var(--muted); border-radius: .3rem; font: inherit; }
-  .key { margin: 1rem 0 .15rem; font-size: .9rem; }
-  .key span { display: inline-flex; align-items: center; gap: .4rem; }
-  .key span::before { content: ""; width: 1.4rem; border-top: 3px solid var(--truth); }
-  .key .estimate::before { border-top: 3px dashed var(--fit); }
-  svg { width: 100%; display: block; overflow: visible; }
-  svg line { stroke: var(--rule); }
-  svg text { fill: var(--muted); font: 16px var(--body); }
-  polyline { fill: none; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-  .truth { stroke: var(--truth); stroke-width: 2.8; }
-  .fit { stroke: var(--fit); stroke-width: 2; stroke-dasharray: 5 4; }
-  .ccm-figure .score { margin: .4rem 0 0; font-size: .95rem; gap: .4rem .7rem; font-variant-numeric: tabular-nums; }
-  @media (max-width: 500px) { svg text { font-size: 21px; } }
+.ccm {padding:1rem; border:1px solid var(--rule); border-radius:.3rem; --a:#89c8ff; --b:#ffb276;}
+:global([data-theme="light"]) .ccm {--a:#195c96;--b:#914210;}
+.ccm figcaption {text-align:left;color:var(--ink);}
+.ccm .legend {display:flex;flex-wrap:wrap;gap:.25rem 1rem;font-size:.95rem;}
+.legend span:first-child {color:var(--a);}
+.legend span:last-child {color:var(--b);}
+svg {display:block;width:100%;}
+text {fill:var(--muted);font:15px var(--body);}
+line {stroke:var(--rule);}
+.cursor {stroke:var(--muted);stroke-dasharray:2 4;}
+.forward {stroke:var(--a);fill:var(--a);}
+.reverse {stroke:var(--b);fill:none;}
+polyline {fill:none;stroke-width:2;}
+.reverse polyline {stroke-dasharray:5 4;}
+.reverse path {stroke-width:1.5;}
+select {background:var(--panel);color:var(--ink);padding:.5rem;border:1px solid var(--muted);border-radius:.3rem;}
+.ccm [hidden] {display:none;}
+.ccm [data-reading] {margin:.5rem 0 0;font-variant-numeric:tabular-nums;}
 </style>

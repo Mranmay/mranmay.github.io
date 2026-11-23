@@ -40,12 +40,9 @@ I keep the first $L$ histories in a library alongside the value $x_1$ had at the
 
 <CcmReconstruction />
 
-Start with 50 library points and switch direction. Estimating $x_1$ from $x_2$ gives a correlation of about **0.56**. Going the other way gives only **0.18**. Then try 185 points. Both correlations pass **0.95**. The panel always shows the same eight time units, so you can see what happens to the estimate of exactly the same peak. The score uses every sample after the selected library.
+At 50 library points I could reconstruct $x_1$ from the history of $x_2$ with a correlation of about **0.56**. Swapping the coordinates gave only **0.18**. Select 185 points and the gap almost disappears. Each point scores all estimates after that library against the simulated coordinate at the same times. The two directions use the same test times at each library size. As the library grows, the remaining test period gets shorter.
 
-<figure>
-  <img src="/images/posts/convergent-cross-mapping/oscillator-reconstruction.webp" width="1120" height="640" loading="lazy" alt="Cross-map skill rises from 0.56 and 0.18 to nearly one in both directions by 321 library points." />
-  <figcaption>My original convergence plot for all eight library sizes. I used a = b = 0.2 and c = 5.7, starting at (1, 0, 0). I ran 15,000 Euler steps of length 0.05 and discarded the first 2,000.</figcaption>
-</figure>
+I used $a=b=0.2$ and $c=5.7$, starting at $(1,0,0)$. I ran 15,000 Euler steps of length 0.05 and discarded the first 2,000.
 
 That comparison helped me understand “convergent.” With 50 examples, some stretches of the orbit have poor matches in my library. With a few hundred, the oscillator has revisited enough nearby states that I can recover either coordinate well. A correlation close to one in both directions makes sense here. I’m watching two coordinates of the same system.
 

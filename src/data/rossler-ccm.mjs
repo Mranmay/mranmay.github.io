@@ -3,8 +3,6 @@ const librarySizes = Array.from({ length: 8 }, (_, i) => Math.floor(50 + 950 * i
 const maxLibrary = librarySizes.at(-1);
 const delay = 5;
 const offset = 2 * delay;
-const traceStart = 1250;
-const traceSamples = 161;
 
 function simulate() {
   let x = 1, y = 0, z = 0;
@@ -25,7 +23,7 @@ function simulate() {
 
 function reconstruct(source, target) {
   const results = librarySizes.map(size => ({
-    size, trace: [], n: 0, sumX: 0, sumY: 0, sumXX: 0, sumYY: 0, sumXY: 0,
+    size, n: 0, sumX: 0, sumY: 0, sumXX: 0, sumYY: 0, sumXY: 0,
   }));
   for (let t = offset + librarySizes[0]; t < source.length; t++) {
     const distances = [Infinity, Infinity, Infinity, Infinity];
@@ -65,16 +63,12 @@ function reconstruct(source, target) {
       r.sumXX += prediction * prediction;
       r.sumYY += actual * actual;
       r.sumXY += prediction * actual;
-      if (t >= traceStart && t < traceStart + traceSamples) r.trace.push(prediction);
     }
   }
-  return {
-    actual: target.slice(traceStart, traceStart + traceSamples),
-    fits: results.map(({ size, trace, n, sumX, sumY, sumXX, sumYY, sumXY }) => ({
-      size, trace,
+  return results.map(({ size, n, sumX, sumY, sumXX, sumYY, sumXY }) => ({
+      size,
       rho: (n * sumXY - sumX * sumY) / Math.sqrt((n * sumXX - sumX ** 2) * (n * sumYY - sumY ** 2)),
-    })),
-  };
+    }));
 }
 
 export function rosslerResults() {
