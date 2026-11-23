@@ -1,7 +1,7 @@
 import type { Point3 } from "../data/dendrites";
 
 // Scale travel along arbors and across their contacts at the same pace.
-export const pulseTravelRate = 0.85;
+export const pulseTravelRate = 0.595;
 
 type Arbor = {
   cell: { soma: Point3 };
