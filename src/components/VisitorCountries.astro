@@ -1,27 +1,52 @@
 <div class="shell countries" id="visitor-countries" hidden>
   <div class="country-heading">
     <span>Visitors by country</span>
-    <p id="country-highlights" aria-live="polite"></p>
+    <div id="country-highlights" aria-live="polite"></div>
   </div>
   <details id="country-details" hidden>
     <summary>All countries</summary>
+    <ul id="country-list" aria-label="Visits by country"></ul>
     <p class="note">Visits since November 2026 · counted once per browser per day. Locations are approximate.</p>
-    <ul id="country-list"></ul>
   </details>
+  <span id="country-tooltip" aria-hidden="true" hidden></span>
 </div>
 
 <style>
-  .countries { border-top: 1px solid var(--rule); padding-block: 1.1rem 1.8rem; font-size: .9rem; }
-  .country-heading { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 1.25rem; row-gap: .35rem; }
+  .countries { border-top: 1px solid var(--rule); padding-block: .75rem 1.2rem; font-size: .875rem; }
+  .country-heading, #country-highlights { display: flex; align-items: center; flex-wrap: wrap; gap: .2rem .7rem; }
   .country-heading > span { font-weight: 600; }
-  .countries p { margin: 0; color: var(--muted); }
-  #country-highlights { display: flex; gap: .35rem 1rem; flex-wrap: wrap; min-height: 1.3em; }
-  details { margin-top: .55rem; }
+  #country-highlights { gap: .1rem .3rem; color: var(--muted); }
+  details { margin-top: .25rem; }
   summary { color: var(--accent); cursor: pointer; width: fit-content; }
-  .countries .note { margin-top: .8rem; }
-  ul { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: .5rem 2rem; padding: 0; margin: 1rem 0 0; }
-  ul :global(li) { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; border-bottom: 1px solid var(--rule); padding-block: .3rem; }
-  ul :global(li span:last-child) { font-variant-numeric: tabular-nums; color: var(--muted); }
+  #country-list {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
+    gap: .1rem .2rem; margin: .45rem 0; padding: .15rem; list-style: none;
+  }
+  .countries :global(.country-cell) {
+    display: inline-flex; align-items: center; gap: .25rem; min-height: 1.6rem;
+    border: 0; border-radius: .25rem; padding: .1rem .2rem; background: transparent;
+    color: var(--muted); font: inherit; font-size: .8125rem; font-variant-numeric: tabular-nums;
+  }
+  .countries :global(.country-cell:hover), .countries :global(.country-cell:focus-visible) {
+    background: var(--panel); color: var(--ink);
+  }
+  .countries :global(.country-cell:focus-visible) { outline-offset: 0; }
+  .countries :global(.country-flag) {
+    display: inline-block; width: 20px; height: 15px; border-radius: 1px;
+    background: url("/images/country-flags.webp") no-repeat; background-size: 320px 240px;
+  }
+  #country-tooltip {
+    position: fixed; z-index: 10; padding: .2rem .5rem; border: 1px solid var(--rule);
+    background: var(--panel); color: var(--ink); border-radius: .3rem; font-size: .8125rem;
+    line-height: 1.4; max-width: calc(100vw - 1rem); pointer-events: none;
+  }
+  .note { margin: .45rem 0 0; color: var(--muted); font-size: .8125rem; }
+  @media (max-width: 42rem) {
+    #country-list { max-height: min(15rem, 40vh); overflow-y: auto; }
+  }
+  @media (pointer: coarse) {
+    .countries :global(.country-cell) { min-height: 2rem; min-width: 2.65rem; }
+  }
 </style>
 
 <script>
@@ -45,39 +70,82 @@
     return saved.slice(day.length + 1);
   }
 
+  const tooltip = document.getElementById("country-tooltip")!;
+  const compactCount = new Intl.NumberFormat("en", { notation: "compact" });
+
+  function flagButton(code: string, name: string, visits: number) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "country-cell";
+    button.dataset.countryName = name;
+    button.setAttribute("aria-label", `${name}, ${visits.toLocaleString()} ${visits === 1 ? "visit" : "visits"}`);
+    const flag = document.createElement("span");
+    const index = countryCodes.indexOf(code);
+    if (index >= 0) {
+      flag.className = "country-flag";
+      flag.style.backgroundPosition = `${-(index % 16) * 20}px ${-Math.floor(index / 16) * 15}px`;
+    } else {
+      flag.textContent = "🌐";
+    }
+    flag.setAttribute("aria-hidden", "true");
+    button.append(flag, visits >= 1000 ? compactCount.format(visits) : String(visits));
+    return button;
+  }
+
+  function cellAt(target: EventTarget | null) {
+    return target instanceof Element ? target.closest<HTMLButtonElement>(".country-cell") : null;
+  }
+
+  function reveal(button: HTMLButtonElement) {
+    tooltip.textContent = button.dataset.countryName || "";
+    tooltip.hidden = false;
+    const cell = button.getBoundingClientRect();
+    const label = tooltip.getBoundingClientRect();
+    const left = cell.left + (cell.width - label.width) / 2;
+    tooltip.style.left = Math.max(6, Math.min(left, document.documentElement.clientWidth - label.width - 6)) + "px";
+    tooltip.style.top = (cell.top >= label.height + 6 ? cell.top - label.height - 4 : cell.bottom + 4) + "px";
+  }
+
+  function dismiss() { tooltip.hidden = true; }
+  root.addEventListener("pointerover", event => {
+    const button = cellAt(event.target);
+    if (event.pointerType === "mouse" && button && button !== cellAt(event.relatedTarget)) reveal(button);
+  });
+  root.addEventListener("pointerout", event => {
+    if (event.pointerType === "mouse" && cellAt(event.target) !== cellAt(event.relatedTarget)) dismiss();
+  });
+  root.addEventListener("focusin", event => {
+    const button = cellAt(event.target);
+    if (button) reveal(button);
+  });
+  root.addEventListener("focusout", dismiss);
+  document.addEventListener("click", event => {
+    const button = cellAt(event.target);
+    if (button) reveal(button);
+    else dismiss();
+  });
+  root.addEventListener("keydown", event => { if (event.key === "Escape") dismiss(); });
+  // The label is positioned in the viewport, outside the scrollable mobile grid.
+  document.addEventListener("scroll", () => { if (!tooltip.hidden) dismiss(); }, { capture: true, passive: true });
+  window.addEventListener("resize", dismiss);
+
   function show(countries: Row[]) {
     const counts = new Map(countries.map(r => [r.country, r.visits]));
     const names = new Intl.DisplayNames(["en"], { type: "region" });
     const name = (code: string) => code === "XX" ? "Unknown location" : names.of(code) || code;
-    const label = (code: string) => {
-      const span = document.createElement("span");
-      if (code !== "XX") {
-        const flag = document.createElement("span");
-        flag.setAttribute("aria-hidden", "true");
-        flag.textContent = String.fromCodePoint(...Array.from(code, c => 127397 + c.charCodeAt(0))) + " ";
-        span.append(flag);
-      }
-      span.append(name(code));
-      return span;
-    };
-    highlights.replaceChildren(...countries.slice(0, 4).map(({ country, visits }) => {
-      const item = label(country);
-      item.append(" " + visits.toLocaleString());
-      return item;
-    }));
+    highlights.replaceChildren(...countries.slice(0, 4).map(({ country, visits }) => flagButton(country, name(country), visits)));
     if (!countries.length) highlights.textContent = "No visits recorded yet.";
     details.hidden = false;
     details.addEventListener("toggle", () => {
+      dismiss();
       if (!details.open || list.childElementCount) return;
       const codes = [...new Set([...countryCodes, ...counts.keys()])];
       codes.sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0) || name(a).localeCompare(name(b), "en"));
       const fragment = document.createDocumentFragment();
-      for (const country of codes) {
-        const row = document.createElement("li");
-        const count = document.createElement("span");
-        count.textContent = (counts.get(country) || 0).toLocaleString();
-        row.append(label(country), count);
-        fragment.append(row);
+      for (const code of codes) {
+        const item = document.createElement("li");
+        item.append(flagButton(code, name(code), counts.get(code) || 0));
+        fragment.append(item);
       }
       list.append(fragment);
     });
