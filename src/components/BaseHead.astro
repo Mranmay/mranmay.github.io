@@ -16,6 +16,13 @@ const canonicalURL = new URL(Astro.url.pathname, site);
 const imageURL = new URL("/images/mranmay-shetty-portfolio.jpg", site);
 const imageAlt = "Mranmay Shetty · Computational neuroscience, with multicolored mouse cortical neurons.";
 const home = new URL("/", site).href;
+const institute = {
+  "@type": "Organization",
+  "@id": "https://www.iit.it/#organization",
+  name: "Istituto Italiano di Tecnologia",
+  alternateName: "IIT",
+  url: "https://www.iit.it/",
+};
 const profile = Astro.url.pathname === "/" && {
   "@context": "https://schema.org",
   "@graph": [
@@ -32,10 +39,14 @@ const profile = Astro.url.pathname === "/" && {
     },
     {
       "@type": "Person", "@id": `${home}#person`,
-      name: FULL_NAME, givenName: "Mranmay", familyName: "Shetty",
+      name: FULL_NAME, givenName: "Mranmay", familyName: "Shetty", alternateName: "Mranmay",
       url: home, jobTitle: "Research Assistant",
-      worksFor: { "@type": "Organization", name: "Istituto Italiano di Tecnologia" },
-      sameAs: PROFILE_LINKS.map(({ href }) => href).filter(href => href.startsWith("https://")),
+      worksFor: institute,
+      affiliation: { "@id": institute["@id"] },
+      sameAs: [
+        ...PROFILE_LINKS.map(({ href }) => href).filter(href => href.startsWith("https://")),
+        "https://orcid.org/0000-0003-3114-9804",
+      ],
     },
   ],
 };

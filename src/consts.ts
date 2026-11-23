@@ -1,7 +1,7 @@
 export const SITE_TITLE = "Mranmay Shetty";
 export const FULL_NAME = SITE_TITLE;
 export const SITE_DESCRIPTION =
-  "Mranmay Shetty is a computational neuroscience researcher at the Istituto Italiano di Tecnologia studying mouse visual cortex with MICrONS and modeling visual working memory.";
+  "Mranmay Shetty is a computational neuroscience researcher at IIT Rovereto studying mouse visual cortex circuits with MICrONS and modeling visual working memory.";
 
 export const NAV_LINKS = [
   { title: "About", href: "/#about" },
