@@ -6,7 +6,6 @@
   <details id="country-details" hidden>
     <summary>All countries</summary>
     <ul id="country-list" aria-label="Visits by country"></ul>
-    <p class="note">Visits since November 2026 · counted once per browser per day. Locations are approximate.</p>
   </details>
   <span id="country-tooltip" aria-hidden="true" hidden></span>
 </div>
@@ -40,7 +39,6 @@
     background: var(--panel); color: var(--ink); border-radius: .3rem; font-size: .8125rem;
     line-height: 1.4; max-width: calc(100vw - 1rem); pointer-events: none;
   }
-  .note { margin: .45rem 0 0; color: var(--muted); font-size: .8125rem; }
   @media (max-width: 42rem) {
     #country-list { max-height: min(15rem, 40vh); overflow-y: auto; }
   }
@@ -57,18 +55,6 @@
   const endpoint = "https://mranmay-visitor-countries.snappy-spoon-2762.chatgpt.site/countries";
   const countryCodes = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS XK YE YT ZA ZM ZW".split(" ");
   type Row = { country: string; visits: number };
-
-  // Rotate the random key daily. The counting service never needs a stable identifier.
-  function dailyKey() {
-    const key = "portfolio.visitor-day";
-    const day = new Date().toISOString().slice(0, 10);
-    let saved = localStorage.getItem(key);
-    if (!saved?.startsWith(day + "/")) {
-      saved = day + "/" + crypto.randomUUID();
-      localStorage.setItem(key, saved);
-    }
-    return saved.slice(day.length + 1);
-  }
 
   const tooltip = document.getElementById("country-tooltip")!;
   const compactCount = new Intl.NumberFormat("en", { notation: "compact" });
@@ -154,12 +140,8 @@
   async function loadCountries() {
     root.hidden = false;
     highlights.textContent = "Loading counts…";
-    let token = "";
-    if (location.origin === "https://mranmay.github.io") {
-      try {
-        token = navigator.locks ? await navigator.locks.request("portfolio-visitor-key", dailyKey) : dailyKey();
-      } catch { /* Read totals when storage is unavailable. */ }
-    }
+    // A fresh key per page load lets repeat visits count while keeping a retry idempotent.
+    const token = location.origin === "https://mranmay.github.io" ? crypto.randomUUID() : "";
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
     try {
