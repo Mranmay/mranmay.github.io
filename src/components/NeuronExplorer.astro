@@ -14,9 +14,11 @@ import volumeUrl from "@/data/microns-volume.json?url";
     aria-label="Stimulate a neuron. Drag horizontally to rotate the reconstruction."
     disabled
   >
-    <span class="volume-poster" aria-hidden="true"></span>
-    <canvas class="volume-geometry" aria-hidden="true"></canvas>
-    <canvas class="volume-activity" aria-hidden="true"></canvas>
+    <span class="field" aria-hidden="true">
+      <span class="volume-poster"></span>
+      <canvas class="volume-geometry"></canvas>
+      <canvas class="volume-activity"></canvas>
+    </span>
   </button>
   <button
     type="button"
@@ -40,21 +42,109 @@ import volumeUrl from "@/data/microns-volume.json?url";
   </button>
 </figure>
 <script>
-  import { activateNeuron } from "./neuron-activity";
-  import { decodeMicrons } from "@/data/decode-microns";
-  const figure = document.querySelector<HTMLElement>("[data-neuron]");
-  if (figure) {
-    fetch(figure.dataset.volume!)
-      .then((response) => {
-        if (!response.ok) throw new Error("Neuron data unavailable");
-        return response.json();
-      })
-      .then(decodeMicrons)
-      .then((cells) => activateNeuron(figure, cells))
-      .catch(() => {
-        /* The static reconstruction remains visible. */
-      });
+  import type { activateNeuron } from "./neuron-activity";
+
+  type Scene = NonNullable<Awaited<ReturnType<typeof activateNeuron>>>;
+  function bind(figure: HTMLElement) {
+    const trigger = figure.querySelector<HTMLButtonElement>(".stimulus")!;
+    const playback = figure.querySelector<HTMLButtonElement>(".playback")!;
+    const field = figure.querySelector<HTMLElement>(".field")!;
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    let scene: Scene | undefined, loading: Promise<void> | undefined;
+    let shown = true, paused = false, moved = false;
+    let yaw = 0, pitch = 0.19, rotated = false;
+    let down: { x: number; y: number; yaw: number; pitch: number } | undefined;
+    const taps: { x: number; y: number; time: number }[] = [];
+
+    function start() {
+      if (scene || loading) return;
+      loading = Promise.all([
+        import("./neuron-activity"), import("../data/decode-microns"),
+        fetch(figure.dataset.volume!).then(r => {
+          if (!r.ok) throw Error("Neuron data unavailable");
+          return r.json();
+        }),
+      ]).then(async ([activity, decoder, volume]) => {
+        const ready = await activity.activateNeuron(figure, await decoder.decodeMicrons(volume));
+        if (!ready) return;
+        scene = ready;
+        scene.setPaused(paused);
+        if (!document.hidden && shown) {
+          if (rotated) scene.rotate(yaw, pitch);
+          const latest = taps.at(-1);
+          for (const tap of taps) {
+            if (latest && latest.time - tap.time < 1.5) scene.tap(tap.x, tap.y, tap.time);
+          }
+        }
+      }).catch(() => {
+        // The initial tissue image remains available. The next gesture can retry.
+      }).finally(() => { loading = undefined; taps.length = 0; });
+    }
+    function syncPlayback() {
+      playback.hidden = motion.matches;
+      playback.toggleAttribute("data-paused", paused);
+      playback.title = paused ? "Play animation" : "Pause animation";
+      playback.setAttribute("aria-label", playback.title);
+      field.style.animationPlayState = (paused || !shown || document.hidden) ? "paused" : "running";
+    }
+    playback.addEventListener("click", () => {
+      paused = !paused;
+      taps.length = 0;
+      scene?.setPaused(paused);
+      syncPlayback();
+    });
+    motion.addEventListener("change", syncPlayback);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { taps.length = 0; down = undefined; }
+      syncPlayback();
+    });
+    new IntersectionObserver(([entry]) => {
+      shown = entry.isIntersecting;
+      if (!shown) { taps.length = 0; down = undefined; }
+      syncPlayback();
+    }).observe(figure);
+
+    trigger.addEventListener("pointerdown", e => {
+      if (!e.isPrimary || e.button !== 0) return;
+      down = { x: e.clientX, y: e.clientY, yaw, pitch };
+      moved = false;
+      if (e.pointerType === "mouse") start();
+    });
+    trigger.addEventListener("pointermove", e => {
+      if (!e.isPrimary || !down) return;
+      const dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (!moved && Math.hypot(dx, dy) < 6) return;
+      if (!moved && e.pointerType === "touch" && Math.abs(dy) > Math.abs(dx)) {
+        moved = true; down = undefined; return;
+      }
+      if (!moved) trigger.setPointerCapture(e.pointerId);
+      moved = rotated = true;
+      yaw = down.yaw + dx * 0.007;
+      pitch = Math.max(-0.95, Math.min(0.95, down.pitch + dy * 0.005));
+      if (scene) scene.rotate(yaw, pitch);
+      else start();
+    });
+    trigger.addEventListener("pointerup", () => { down = undefined; });
+    trigger.addEventListener("pointercancel", () => { down = undefined; moved = true; });
+    trigger.addEventListener("lostpointercapture", () => { down = undefined; });
+    trigger.addEventListener("click", e => {
+      if (e.detail && moved) return;
+      const rect = field.getBoundingClientRect();
+      const x = e.detail ? (e.clientX - rect.left) / rect.width : -1;
+      const y = e.detail ? (e.clientY - rect.top) / rect.height : -1;
+      if (e.detail && (x < 0 || y < 0 || x > 1 || y > 1)) return;
+      const time = performance.now() / 1000;
+      if (scene) scene.tap(x, y, time);
+      else {
+        if (taps.length >= 5) taps.shift();
+        taps.push({ x, y, time }); start();
+      }
+    });
+    trigger.disabled = false;
+    syncPlayback();
   }
+  const figure = document.querySelector<HTMLElement>("[data-neuron]");
+  if (figure) bind(figure);
 </script>
 <style>
   .specimen {
@@ -98,6 +188,7 @@ import volumeUrl from "@/data/microns-volume.json?url";
   .stimulus:disabled {
     cursor: default;
   }
+  .field,
   .volume-poster,
   canvas {
     display: block;
@@ -107,6 +198,15 @@ import volumeUrl from "@/data/microns-volume.json?url";
     height: 100%;
     pointer-events: none;
   }
+  /* The poster and click overlay move as one layer so hit testing stays aligned. */
+  @keyframes tissue-drift {
+    from { transform: translate(-0.45%, 0.20%) scale(1.012); }
+    to { transform: translate(0.45%, -0.20%) scale(1.012); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .field { animation: tissue-drift 15s ease-in-out infinite alternate; }
+  }
+  .playback[hidden] { display: none; }
   .volume-poster {
     background: var(--field-matte) url("/images/microns-tissue-glow-dark.webp")
       center/cover no-repeat;
