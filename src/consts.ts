@@ -6,7 +6,7 @@ export const SITE_DESCRIPTION =
 export const NAV_LINKS = [
   { title: "About", href: "/#about" },
   { title: "Research", href: "/research/" },
-  { title: "Publications", href: "/#publications" },
+  { title: "Papers", href: "/#publications" },
   { title: "Blog", href: "/blog/" },
   { title: "CV", href: "/cv/" },
 ];
