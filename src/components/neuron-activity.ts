@@ -1,6 +1,6 @@
 import type { Cell, Point3 } from "@/data/dendrites";
 import { mapCells } from "../data/neuron-scheduling";
-import { initNeuronGL } from "./neuron-gl";
+import type { initNeuronGL } from "./neuron-gl";
 import {
   cellMaterial,
   endpointRadii,
@@ -47,7 +47,6 @@ function colorAt(rgb: number[], factor: number) {
 }
 type Projected = ReturnType<ReturnType<typeof camera>>;
 type Segment = { points: number[]; radii: number[]; axon: boolean };
-type Signal = { points: number[]; distances: number[]; length: number };
 function prepare(cell: Cell) {
   const points: Point3[] = [];
   const indices = new Map<string, number>();
@@ -118,49 +117,20 @@ function prepare(cell: Cell) {
       radius: 0.5 * Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) + 1.5 * width,
     });
   }
-  // Follow the traced edges between each chosen distal terminal and its soma.
-  const parent = new Int32Array(points.length).fill(-1),
-    queue = [somaIndex];
-  parent[somaIndex] = somaIndex;
+  // Sample graph vertices in the component connected to the soma.
+  const visited = new Uint8Array(points.length);
+  const queue = [somaIndex];
+  visited[somaIndex] = 1;
   for (let i = 0; i < queue.length; i++) {
     for (const edgeId of incident[queue[i]]) {
       const { a, b } = edges[edgeId];
       const next = a === queue[i] ? b : a;
-      if (parent[next] === -1) {
-        parent[next] = queue[i];
-        queue.push(next);
-      }
+      if (!visited[next]) { visited[next] = 1; queue.push(next); }
     }
   }
-  // A bounded sample of reachable branch points suffices for finding nearby
-  // intercell contacts. The paths from each contact to its soma remain exact.
   const contacts: number[] = [];
   const stride = Math.max(1, Math.ceil(queue.length / 48));
   for (let i = 0; i < queue.length; i += stride) contacts.push(queue[i]);
-  const signals: Signal[] = [];
-  for (const route of cell.signals) {
-    const terminal = route[route.length - 1];
-    if (!terminal) continue;
-    const last = indices.get(`${terminal.x},${terminal.y},${terminal.z}`);
-    if (last === undefined || last === somaIndex || parent[last] === -1)
-      continue;
-    const nodes = [last];
-    while (nodes[nodes.length - 1] !== somaIndex)
-      nodes.push(parent[nodes[nodes.length - 1]]);
-    const distances = [0];
-    for (let i = 1; i < nodes.length; i++) {
-      const a = points[nodes[i - 1]],
-        b = points[nodes[i]];
-      distances.push(
-        distances[i - 1] + Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z),
-      );
-    }
-    signals.push({
-      points: nodes,
-      distances,
-      length: distances[distances.length - 1],
-    });
-  }
   const material = cellMaterial(cell),
     pigment = material.pigment,
     shape = somaAxes(cell);
@@ -229,18 +199,18 @@ function prepare(cell: Cell) {
     axisTip,
     points,
     edges,
-    signals,
     epoch: -1,
-    projected: points.map((): Projected => ({ x: 0, y: 0, z: 0, size: 1 })),
+    projected: [] as Projected[],
     somaIndex,
   };
 }
 type Neuron = ReturnType<typeof prepare>;
-type Pulse = { neuron: Neuron; signal: Signal; born: number; duration: number };
+const burstDuration = 3.2;
+const fadeDuration = 0.45;
 type Hit = { neuron: Neuron; edgeIndex: number; fraction: number; onSoma?: boolean };
 type Pattern = ReturnType<typeof traceArbor>;
 type Bridge = { from: Neuron; start: Point3; end: Point3; born: number; duration: number };
-type Front = { cell: Neuron; pattern: Pattern; born: number; bridge?: Bridge };
+type Front = { cell: Neuron; pattern: Pattern; born: number; decay: number; bridge?: Bridge };
 type Spread = {
   nodes: ReturnType<typeof planSpread<Neuron>>;
   limit: number;
@@ -279,19 +249,16 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   const context = canvas.getContext("2d");
   if (!context) return;
   const ctx = context;
-  let gpu = await initNeuronGL(glCanvas, cells);
-  // Keep the full depth-rendered, theme-matched surface beneath live tracings on
-  // devices without WebGL. A drag switches to interactive software geometry.
-  let posterActive = !gpu;
-  figure.classList.toggle("poster-active", posterActive);
-  const playback = figure.querySelector<HTMLButtonElement>(".playback")!;
+  let gpu: Awaited<ReturnType<typeof initNeuronGL>> = null;
+  let rotatingScene: Promise<void> | undefined;
+  let posterActive = true;
+  figure.classList.add("poster-active");
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const compactLayout = matchMedia("(max-width: 760px)");
   const neurons = await mapCells(cells, prepare);
   const sorted = neurons.slice();
+  const featured = neurons.filter(n => n.material.emission > 0);
   const halos = new Map<string, HTMLCanvasElement>();
   let lightTheme = document.documentElement.dataset.theme === "light";
-  const featured = neurons.filter((n) => n.material.emission > 0);
   function applyMaterials() {
     halos.clear();
     for (const n of neurons) {
@@ -310,27 +277,16 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   let flights: Front[] = [], inputs: Front[] = [], spreads: Spread[] = [];
   let stillFront: Front | undefined;
   let lastPattern: { cell: Neuron; stimulus: Stimulus; pattern: Pattern } | undefined;
-  let lastTap = -Infinity, charge = 0, holdViewUntil = 0;
+  let lastTap = -Infinity, charge = 0, endsAt = -Infinity;
   let stillCells: Neuron[] = [];
   let stillTimer = 0;
-  let pulses: Pulse[] = [];
-  let yaw = initialYaw,
-    pitch = initialPitch,
-    autoTime = 0,
-    clock = 0,
-    ambient = 0,
-    cycle = 0;
-  let visible = false,
-    paused = false,
-    frame = 0,
-    previous = 0,
-    drawn = 0,
+  let yaw = initialYaw, pitch = initialPitch, clock = 0, cycle = 0;
+  let visible = true, paused = false, frame = 0, drawn = -Infinity,
     scale = 1,
     offsetX = 0,
     offsetY = 0;
   let fiberScale = 1;
   const touchDevice = navigator.maxTouchPoints > 0;
-  let dragging = false;
   let viewPending = false;
   let scrolling = false;
   let scrollTimer = 0;
@@ -350,7 +306,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   function locate(neuron: Neuron) {
     if (neuron.epoch !== epoch) {
       for (let i = 0; i < neuron.points.length; i++)
-        project(neuron.points[i], neuron.projected[i]);
+        neuron.projected[i] = project(neuron.points[i], neuron.projected[i]);
       neuron.epoch = epoch;
     }
   }
@@ -635,10 +591,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     buffer.globalAlpha = 1;
   }
   function geometry(force = false) {
-    const a = yaw + Math.sin(autoTime * 0.11) * 0.21,
-      b = pitch + Math.sin(autoTime * 0.072) * 0.1;
-    // The activity layer keeps its own cadence. At this camera speed a touch
-    // screen can reuse the full-detail tissue across several pulse frames.
+    const a = yaw, b = pitch;
+    // Reuse the tissue while only the click overlay is moving.
     const threshold = gpu ? (touchDevice ? 0.0021 : 0.00065) : 0.0027;
     if (
       !force &&
@@ -681,91 +635,11 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     drawFallback();
     scatterLight();
   }
-  function pulseVisibleArbor() {
-    const pool = cycle % 4 === 3 ? neurons : featured;
-    for (let i = 0; i < pool.length; i++) {
-      const neuron = pool[(cycle * 19 + i * 7 + 2) % pool.length];
-      const signal = neuron.signals[cycle % neuron.signals.length];
-      if (!signal) continue;
-      const j = Math.floor((signal.points.length - 1) * (0.33 + 0.3 * ((cycle % 3) / 2)));
-      const sample = project(neuron.points[signal.points[j]]);
-      const x = (offsetX + scale * sample.x) / canvas.width;
-      const y = (offsetY + scale * sample.y) / canvas.height;
-      if (x < (compactLayout.matches ? 0.06 : 0.43) || x > 0.94 ||
-          y < (compactLayout.matches ? 0.18 : 0.06) || y > 0.83) continue;
-      const duration = Math.max(0.56, Math.min(2.3, signal.length / 112));
-      pulses.push({
-        neuron, signal, duration,
-        born: clock - duration * signal.distances[j] / signal.length,
-      });
-      break;
-    }
-  }
-  function at(neuron: Neuron, signal: Signal, distance: number) {
-    let i = 1;
-    while (i < signal.points.length - 1 && signal.distances[i] < distance) i++;
-    const factor = Math.max(
-      0,
-      Math.min(
-        1,
-        (distance - signal.distances[i - 1]) /
-          (signal.distances[i] - signal.distances[i - 1] || 1),
-      ),
-    );
-    const a = neuron.projected[signal.points[i - 1]],
-      b = neuron.projected[signal.points[i]];
-    return {
-      x: a.x + (b.x - a.x) * factor,
-      y: a.y + (b.y - a.y) * factor,
-      z: a.z + (b.z - a.z) * factor,
-    };
-  }
   function paint() {
     geometry();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
-    pulses = pulses.filter((p) => clock - p.born <= p.duration);
-    for (const p of pulses) {
-      if (clock < p.born) continue;
-      locate(p.neuron);
-      const distance = ((clock - p.born) / p.duration) * p.signal.length;
-      const head = at(p.neuron, p.signal, distance);
-      const elapsed = (clock - p.born) / p.duration;
-      const fade =
-        Math.min(1, elapsed * 10, (1 - elapsed) * 10) *
-        (0.28 + 0.64 * brightness(head.z));
-      ctx.lineCap = "round";
-      function stroke(
-        tail: number,
-        width: number,
-        color: string,
-        alpha: number,
-      ) {
-        ctx.beginPath();
-        for (let i = 0; i <= 5; i++) {
-          const pos = at(
-            p.neuron,
-            p.signal,
-            Math.max(0, distance - tail * (1 - i / 5)),
-          );
-          if (i === 0) ctx.moveTo(pos.x, pos.y);
-          else ctx.lineTo(pos.x, pos.y);
-        }
-        ctx.strokeStyle = color;
-        ctx.globalAlpha = fade * alpha;
-        ctx.lineWidth = width;
-        ctx.stroke();
-      }
-      stroke(14, 2.55, p.neuron.color, lightTheme ? 0.86 : 0.47);
-      stroke(
-        7.5,
-        1.15,
-        lightTheme ? "#fff8c7" : "#f9e5bc",
-        p.neuron.material.emission ? 0.92 : 0.48,
-      );
-      ctx.globalAlpha = 1;
-    }
     paintStimulus();
   }
 
@@ -852,94 +726,97 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       if (front.bridge) drawBridge(front, front.bridge);
       return;
     }
-    drawCables(front, (age - 0.22) * pattern.speed, age * pattern.speed, false);
+    drawCables(front, (age - 0.22 * front.decay) * pattern.speed, age * pattern.speed, false);
     if (age < 0.20) {
       const p = project(pattern.origin), r = 6 * p.size;
       ctx.globalAlpha = 0.9 * (1 - age / 0.20);
       ctx.drawImage(halos.get(cell.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
     }
     const landed = age - pattern.distance[cell.somaIndex] / pattern.speed;
-    if (landed >= 0 && landed < 0.34) lightSoma(cell, (1 - landed / 0.34) ** 2);
+    const afterglow = 0.34 * front.decay;
+    if (landed >= 0 && landed < afterglow) lightSoma(cell, (1 - landed / afterglow) ** 2);
   }
 
   function paintStimulus() {
-    const alive = (f: Front) => clock < f.born + f.pattern.extent / f.pattern.speed + 0.34;
+    if (!inputs.length && !flights.length && !spreads.length && !stillFront) return;
+    if (clock >= endsAt && !stillFront) {
+      clearWaves();
+      return;
+    }
+    const fade = Math.min(1, Math.max(0, (endsAt - clock) / fadeDuration));
+    const alive = (f: Front) => clock < f.born + f.pattern.extent / f.pattern.speed + 0.34 * f.decay;
     if (inputs.length) inputs = inputs.filter(alive);
     if (flights.length) flights = flights.filter(alive);
     for (const spread of spreads) {
-      if (paused || motion.matches || !spread.pending || clock < spread.nextLaunch || flights.length >= (touchDevice ? 10 : 14)) continue;
-      for (let i = 1; i < spread.limit; i++) {
+      if (fade < 1 || paused || motion.matches || !spread.pending || clock < spread.nextLaunch) continue;
+      // Short, fast relays let rapid taps reach the outer cells within the
+      // same release window. Only a bounded number of fronts can draw at once.
+      const drive = Math.max(0, spread.limit - 4) / Math.max(1, neurons.length - 4);
+      const rate = 1 + 9 * drive;
+      const capacity = (touchDevice ? 10 : 14) + Math.round(8 * drive);
+      let slots = Math.min(1 + Math.round(3 * drive), capacity - flights.length);
+      for (let i = 1; i < spread.limit && slots > 0; i++) {
         const node = spread.nodes[i], parent = spread.nodes[node.parent];
         if (node.timing || !parent.timing || parent.arrival > clock) continue;
         const { exit, entry } = node.contact ??= relayContact(parent.cell, node.cell, parent.timing.distance);
         if (clock < parent.arrival + parent.timing.distance[exit] / parent.timing.speed) continue;
         const start = parent.cell.points[exit], end = node.cell.points[entry];
         const gap = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
-        const duration = gap ? Math.min(0.55, 0.12 + gap / 235) : 0;
+        const duration = gap ? Math.max(0.065, Math.min(0.55, 0.12 + gap / 235) / rate) : 0;
         const pattern = traceArbor(node.cell, { node: entry });
+        pattern.speed *= rate;
         node.arrival = clock + duration;
         node.timing = { distance: pattern.distance, speed: pattern.speed };
-        flights.push({ cell: node.cell, pattern, born: node.arrival,
+        flights.push({ cell: node.cell, pattern, born: node.arrival, decay: 1 / Math.sqrt(rate),
           bridge: { from: parent.cell, start, end, born: clock, duration } });
         spread.pending--;
-        spread.nextLaunch = clock + 0.038;
-        break;
+        spread.nextLaunch = clock + 0.038 / rate;
+        slots--;
       }
     }
+    if (!inputs.length && !flights.length && spreads.every(s => !s.pending)) spreads = [];
     for (const front of flights) drawFront(front);
     for (const front of inputs) drawFront(front);
     if (stillFront) drawCables(stillFront, 0, stillFront.pattern.extent + 1, true);
     for (const cell of stillCells) lightSoma(cell, 0.74);
     ctx.globalAlpha = 1;
+    // Fade the transparent activity canvas as a layer, leaving the tissue intact.
+    canvas.style.opacity = stillFront || fade >= 1 ? "" : String(fade);
   }
 
   function tick(time: number) {
     frame = 0;
     if (!visible || document.hidden || scrolling) return;
-    if (!viewPending && previous && time - drawn < 1000 / 30 - 0.5) {
-      frame = requestAnimationFrame(tick);
+    clock = time / 1000;
+    if (!viewPending && time - drawn < 1000 / 30 - 0.5 && clock < endsAt) {
+      play();
       return;
     }
-    const dt = previous ? Math.min(0.09, (time - previous) / 1000) : 0;
-    previous = time;
     drawn = time;
-    clock += dt;
-    const auto = !paused && !motion.matches;
-    if (auto && !dragging && !posterActive && clock >= holdViewUntil) autoTime += dt;
-    if (auto && clock >= ambient) {
-      pulseVisibleArbor();
-      cycle++;
-      ambient = clock + 0.48 + 0.19 * (0.5 + 0.5 * Math.sin(cycle * 2.7));
-    }
     paint();
-    if (auto || viewPending) frame = requestAnimationFrame(tick);
-    else previous = 0;
+    if (viewPending || (!paused && !motion.matches &&
+        (inputs.length || flights.length || spreads.some(s => s.pending)))) play();
   }
   function play() {
     if (!frame && visible && !document.hidden && !scrolling)
       frame = requestAnimationFrame(tick);
   }
-  function resetTiming() {
-    previous = 0;
+  function clearWaves() {
+    inputs = []; flights = []; spreads = [];
+    stillFront = undefined; stillCells = []; lastPattern = undefined;
+    charge = 0; lastTap = endsAt = -Infinity;
+    window.clearTimeout(stillTimer);
+    canvas.style.opacity = "";
+  }
+  function stop() {
     cancelAnimationFrame(frame);
-    frame = 0;
-    if (motion.matches || paused) {
-      pulses = [];
-      inputs = []; flights = []; spreads = [];
-      charge = 0; lastTap = -Infinity;
-    }
-    if (!paused && !motion.matches && stillCells.length) {
-      stillFront = undefined; stillCells = []; spreads = [];
-      window.clearTimeout(stillTimer);
-    }
-    playback.hidden = motion.matches;
-    playback.toggleAttribute("data-paused", paused);
-    playback.title = paused ? "Play animation" : "Pause animation";
-    playback.setAttribute("aria-label", playback.title);
-    play();
+    frame = 0; drawn = -Infinity;
+    clearWaves();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
   function resize() {
-    const rect = canvas.getBoundingClientRect();
+    const rect = stimulus.getBoundingClientRect();
     const dpr = Math.min(
       window.devicePixelRatio || 1,
       1.65,
@@ -1064,15 +941,19 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   }
 
   let lastPick: { point: { x: number; y: number }; hit: Hit; epoch: number } | undefined;
-  function choose(point: { x: number; y: number }) {
+  function choose(point: { x: number; y: number }, tapTime: number) {
+    clock = performance.now() / 1000;
+    if (clock >= endsAt) clearWaves();
     const hit = lastPick && lastPick.epoch === epoch && Math.hypot(
       lastPick.point.x - point.x, lastPick.point.y - point.y,
     ) < 0.5 ? lastPick.hit : pick(point);
     if (!hit) return;
     lastPick = { point, hit, epoch };
     const n = hit.neuron;
-    const now = performance.now() / 1000, interval = now - lastTap;
-    lastTap = now;
+    const interval = tapTime - lastTap;
+    lastTap = tapTime;
+    endsAt = clock + burstDuration;
+    canvas.style.opacity = "";
     const continuing = interval < 1.5;
     charge = nextCharge(continuing ? charge : 0, interval);
     const origin: Stimulus = hit.onSoma ? { node: n.somaIndex } :
@@ -1083,7 +964,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       : "edge" in cached.stimulus && origin.edge === cached.stimulus.edge && origin.fraction === cached.stimulus.fraction);
     const pattern = same ? cached.pattern : traceArbor(n, origin);
     lastPattern = { cell: n, stimulus: origin, pattern };
-    const front: Front = { cell: n, born: clock, pattern };
+    const front: Front = { cell: n, born: clock, pattern, decay: 1 };
 
     let spread = spreads[spreads.length - 1];
     const replay = spread && !spread.pending && recruitedCount(spread.nodes, charge) <= spread.limit;
@@ -1092,7 +973,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       nodes[0].arrival = clock;
       nodes[0].timing = { distance: pattern.distance, speed: pattern.speed };
       spread = { nodes, limit: 1, pending: 0, nextLaunch: nodes[0].arrival };
-      spreads = [...spreads.filter(s => s.pending).slice(-1), spread];
+      spreads = [spread];
     }
     const limit = Math.max(spread.limit, recruitedCount(spread.nodes, charge));
     spread.pending += limit - spread.limit;
@@ -1101,78 +982,28 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       stillFront = front;
       stillCells = [...new Set([n, ...spread.nodes.slice(0, limit).map(node => node.cell)])];
       window.clearTimeout(stillTimer);
-      stillTimer = window.setTimeout(() => { stillFront = undefined; stillCells = []; spreads = []; paint(); }, 900);
+      stillTimer = window.setTimeout(() => { stop(); }, 900);
       paint();
       return;
     }
-    // Hold the view briefly so a second tap can stay on the same moving fiber.
-    holdViewUntil = clock + 0.55;
     if (inputs.length >= 4) inputs.splice(1, 1);
     inputs.push(front);
     play();
   }
 
-  let down: { x: number; y: number; a: number; b: number } | null = null;
-  let moved = false;
-  stimulus.addEventListener("pointerdown", (e) => {
-    if (!e.isPrimary || e.button !== 0) return;
-    down = { x: e.clientX, y: e.clientY, a: yaw, b: pitch };
-    moved = false;
-  });
-  stimulus.addEventListener("pointermove", (e) => {
-    if (!e.isPrimary || !down) return;
-    const dx = e.clientX - down.x,
-      dy = e.clientY - down.y;
-    if (!moved && Math.hypot(dx, dy) < 6) return;
-    moved = true;
-    if (e.pointerType === "touch" && !dragging && Math.abs(dy) > Math.abs(dx))
-      return;
-    if (!dragging) {
-      dragging = true;
-      if (posterActive) {
-        posterActive = false;
-        figure.classList.remove("poster-active");
-      }
-      stimulus.setPointerCapture(e.pointerId);
+  async function enableRotation() {
+    try {
+      const { initNeuronGL } = await import("./neuron-gl");
+      gpu = await initNeuronGL(glCanvas, cells);
+    } catch {
+      gpu = null;
     }
-    yaw = down.a + dx * 0.007;
-    pitch = Math.max(-0.95, Math.min(0.95, down.b + dy * 0.005));
-    viewPending = true;
-    play();
-  });
-  function release() {
-    down = null;
-    dragging = false;
+    posterActive = false;
+    figure.classList.remove("poster-active");
+    figure.classList.toggle("with-gpu", Boolean(gpu));
+    lastYaw = NaN;
+    if (visible && !document.hidden) resize();
   }
-  stimulus.addEventListener("pointerup", release);
-  stimulus.addEventListener("pointercancel", () => {
-    moved = true;
-    release();
-  });
-  stimulus.addEventListener("lostpointercapture", release);
-  stimulus.addEventListener("click", (e) => {
-    const r = canvas.getBoundingClientRect();
-    if (e.detail === 0) {
-      const index = cycle++;
-      const y = 0.4 + 0.16 * Math.cos(index * 1.71);
-      return choose({
-        x:
-          (canvas.width * (0.6 + 0.19 * Math.sin(index * 2.27)) - offsetX) /
-          scale,
-        y: (canvas.height * y - offsetY) / scale,
-      });
-    }
-    if (moved) return;
-    if (e.clientY < r.top || e.clientY > r.bottom) return;
-    choose({
-      x: (((e.clientX - r.left) * canvas.width) / r.width - offsetX) / scale,
-      y: (((e.clientY - r.top) * canvas.height) / r.height - offsetY) / scale,
-    });
-  });
-  playback.addEventListener("click", () => {
-    paused = !paused;
-    resetTiming();
-  });
   new MutationObserver(() => {
     const next = document.documentElement.dataset.theme === "light";
     if (next === lightTheme) return;
@@ -1184,20 +1015,23 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     attributes: true,
     attributeFilter: ["data-theme"],
   });
-  motion.addEventListener("change", resetTiming);
-  document.addEventListener("visibilitychange", resetTiming);
+  motion.addEventListener("change", stop);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop();
+    else if (visible) resize();
+  });
   window.addEventListener("scroll", () => {
     if (!visible || document.hidden) return;
     if (!scrolling) {
       scrolling = true;
       cancelAnimationFrame(frame);
       frame = 0;
-      previous = 0;
+
     }
     window.clearTimeout(scrollTimer);
     scrollTimer = window.setTimeout(() => {
       scrolling = false;
-      play();
+      if (inputs.length || flights.length || spreads.length || viewPending) play();
     }, 120);
   }, { passive: true });
   glCanvas.addEventListener("webglcontextlost", (event) => {
@@ -1212,10 +1046,31 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   new ResizeObserver(resize).observe(stimulus);
   new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting;
-    resetTiming();
+    if (!visible) stop();
+    else resize();
   }).observe(figure);
   resize();
-  figure.classList.toggle("with-gpu", Boolean(gpu));
   figure.classList.add("ready");
-  stimulus.disabled = false;
+  return {
+    tap(x: number, y: number, time: number) {
+      if (!visible || document.hidden) return;
+      if (x < 0) {
+        const i = cycle++;
+        x = 0.6 + 0.19 * Math.sin(i * 2.27);
+        y = 0.4 + 0.16 * Math.cos(i * 1.71);
+      }
+      choose({ x: (x * canvas.width - offsetX) / scale, y: (y * canvas.height - offsetY) / scale }, time);
+    },
+    rotate(x: number, y: number) {
+      yaw = initialYaw + x;
+      pitch = y;
+      viewPending = true;
+      rotatingScene ??= enableRotation();
+      if (!posterActive) play();
+    },
+    setPaused(value: boolean) {
+      paused = value;
+      stop();
+    },
+  };
 }
