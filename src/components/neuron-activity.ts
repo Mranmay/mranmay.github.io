@@ -193,6 +193,7 @@ function prepare(cell: Cell) {
     glowSites: material.emission ? focalGlow(cell).sites : [],
     pigment,
     color: colorAt(pigment, 1),
+    waveHighlight: "",
     shape,
     axisTip,
     points,
@@ -264,6 +265,11 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     for (const n of neurons) {
       n.pigment = lightTheme ? n.material.lightPigment : n.material.pigment;
       n.color = colorAt(n.pigment, 1);
+      // Lift the wavefront with a little white while preserving the arbor's hue.
+      const gain = lightTheme ? 1 : 255 / Math.max(...n.pigment);
+      const tint = lightTheme ? 0.08 : 0.15;
+      const highlight = n.pigment.map(c => Math.round(c * gain * (1 - tint) + 255 * tint));
+      n.waveHighlight = `rgb(${highlight.join(",")})`;
       if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
     }
   }
@@ -781,14 +787,14 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       radius,
       core + 1.1,
       0.97 * attenuation,
-      lightTheme ? ink : "#ffe4a5",
+      ink,
     );
     band(
       radius - 8.5,
       radius,
       core * 0.82,
       attenuation,
-      lightTheme ? "#fff8cb" : "#fffbea",
+      neuron.waveHighlight,
     );
     if (radius < 38 || stillWave === w) {
       const intensity = stillWave === w ? 1 : Math.max(0, 1 - radius / 38);
@@ -806,7 +812,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
         );
       }
       ctx.globalAlpha = intensity;
-      ctx.fillStyle = lightTheme ? "#ffffec" : "#fff9d6";
+      ctx.fillStyle = neuron.waveHighlight;
       ctx.beginPath();
       ctx.arc(x, y, core * 0.61, 0, Math.PI * 2);
       ctx.fill();
