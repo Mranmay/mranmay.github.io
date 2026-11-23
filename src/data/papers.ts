@@ -11,7 +11,7 @@ export const papers = {
     title: "Turing-like tests for language and vision demonstrate a narrowing gap between humans and AI",
     year: 2026,
     venue: "Nature Human Behaviour",
-    authors: "Mengmi Zhang, Elisa Pavarino, Xiao Liu, …, Mranmay Shetty, …, Gabriel Kreiman",
+    authors: "Mengmi Zhang, Elisa Pavarino, Xiao Liu, Giorgia Dellaferrera, Ankur Sikarwar, Caishun Chen, Marcelo Armendariz, Noga Mudrik, Prachi Agrawal, Spandan Madan, Mranmay Shetty, Andrei Barbu, Haochen Yang, Tanishq Kumar, Shui’Er Han, Aman Raj Singh, Meghna Sadwani, Stella Dellaferrera, Michele Pizzochero, Brandon Tang, Yew-Soon Ong, Hanspeter Pfister and Gabriel Kreiman",
     href: "https://doi.org/10.1038/s41562-026-02590-6",
     result: "Across six tasks, even simple AI judges were better than people at telling human responses from machine responses.",
   },
