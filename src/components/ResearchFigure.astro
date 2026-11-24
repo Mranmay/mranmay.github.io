@@ -16,18 +16,15 @@ interface Props {
 const { figure, title } = Astro.props;
 ---
 
-<figure>
+<figure itemscope itemtype="https://schema.org/ImageObject">
+  <meta itemprop="caption" content={figure.caption} />
+  <meta itemprop="creditText" content={figure.credit} />
+  {figure.source && <link itemprop="isBasedOn" href={figure.source} />}
+  {figure.license && <link itemprop="license" href={figure.license.url} />}
+  {figure.photoCredits && <link itemprop="citation" href={figure.photoCredits} />}
   <a class="figure-image" href={figure.src} aria-label={`Open full-size figure: ${title}`}>
-    <img src={figure.src} width={figure.width} height={figure.height} alt={figure.alt} loading="lazy" decoding="async" />
+    <img itemprop="contentUrl" src={figure.src} width={figure.width} height={figure.height} alt={figure.alt} loading="lazy" decoding="async" />
   </a>
-  <figcaption>
-    <span>{figure.caption}</span>
-    <small>
-      {figure.source ? <a href={figure.source}>{figure.credit}</a> : figure.credit}
-      {figure.license && <> · <a href={figure.license.url}>{figure.license.label}</a></>}
-      {figure.photoCredits && <> · <a href={figure.photoCredits}>Photo credits</a></>}
-    </small>
-  </figcaption>
 </figure>
 <style>
   figure { margin: 0; }
@@ -47,7 +44,4 @@ const { figure, title } = Astro.props;
     max-height: 25rem;
     object-fit: contain;
   }
-  figcaption { color: var(--muted); font-size: .92rem; line-height: 1.45; margin-block-start: .65rem; }
-  figcaption small { display: block; font-size: .8rem; line-height: 1.4; margin-block-start: .2rem; }
-  figcaption a { text-underline-offset: .15em; }
 </style>
