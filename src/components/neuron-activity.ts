@@ -278,7 +278,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       const highlight = n.pigment.map(c => Math.round(c * gain * (1 - tint) + 255 * tint));
       n.hue = toHsl(highlight);
       n.waveHighlight = `rgb(${highlight.join(",")})`;
-      n.somaHighlight = colorAt(highlight.map(c => c + (255 - c) * .28), 1);
+      const somaTint = lightTheme ? 0.53 : 0.62;
+      n.somaHighlight = colorAt(highlight.map(c => c + (255 - c) * somaTint), 1);
       if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
     }
   }
@@ -671,8 +672,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     }
     const body = entry.body, zoom = p.size / body.size;
     if (!mask) {
-      const r = Math.max(n.cell.radius * p.size * 2.3, .72 * zoom * Math.max(body.width, body.height));
-      ctx.globalAlpha = intensity * .65;
+      const r = Math.max(n.cell.radius * p.size * 2.7, .85 * zoom * Math.max(body.width, body.height));
+      ctx.globalAlpha = intensity * .93;
       ctx.drawImage(halos.get(n.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
     }
     ctx.globalAlpha = intensity;

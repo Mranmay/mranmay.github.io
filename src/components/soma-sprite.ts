@@ -53,7 +53,7 @@ export function somaSprite(
   const sx = image.width / width, sy = image.height / height;
   pen.setTransform(sx, 0, 0, sy, -left * sx, -top * sy);
   const fill = pen.createRadialGradient(-radius * .2, -radius * .25, 0, 0, 0, Math.max(radius, width / 2, height / 2));
-  fill.addColorStop(0, highlight);
+  fill.addColorStop(.26, highlight);
   fill.addColorStop(1, color);
   pen.fillStyle = fill;
   pen.fill(shape);
