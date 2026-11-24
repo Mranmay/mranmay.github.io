@@ -3,7 +3,7 @@ import type { ComponentProps } from "astro/types";
 import Layout from "@/layouts/Layout.astro";
 import { projects, type ProjectId } from "@/data/projects";
 import { paperFigures } from "@/data/paperFigures";
-import { researchFigures, spikeGallery } from "@/data/researchFigures";
+import { researchFigures } from "@/data/researchFigures";
 import ResearchFigure from "@/components/ResearchFigure.astro";
 
 type Figure = ComponentProps<typeof ResearchFigure>["figure"];
@@ -56,14 +56,6 @@ const sections = [
                 <div class="project-figure">
                   <ResearchFigure figure={figure} title={project.title} />
                 </div>
-              )}
-              {project.id === "spike-inference" && spikeGallery.length > 0 && (
-                <details class="gallery">
-                  <summary>More figures from this project ({spikeGallery.length})</summary>
-                  <div>
-                    {spikeGallery.map((item) => <ResearchFigure figure={item} title={item.alt} />)}
-                  </div>
-                </details>
               )}
             </article>
           );
@@ -131,14 +123,6 @@ const sections = [
     margin-block-start: 1.1rem;
   }
   .project-figure { grid-area: figure; align-self: start; margin: 0; }
-  .gallery { grid-column: 1 / -1; border-block: 1px solid var(--rule); margin-top: 1.3rem; }
-  .gallery summary {
-    cursor: pointer;
-    color: var(--accent);
-    padding-block: .8rem;
-    font-size: .95rem;
-  }
-  .gallery > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2rem; padding-block: .5rem 1.4rem; }
   @media (max-width: 750px) {
     .research-project {
       grid-template-columns: minmax(0, 1fr);
