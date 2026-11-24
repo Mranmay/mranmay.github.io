@@ -47,7 +47,7 @@ export const projects = [
     title: "Can a neural network capture retinal adaptation?",
     group: "With Bruno Cessac · Inria BIOVISION",
     question: "Can a network trained on natural scenes predict how the retina responds when the lighting changes?",
-    approach: "In my MSc literature review, I compared models of retinal ganglion-cell responses with the biological circuits that shape them. I looked at how models handle changes in light and contrast, and how tests with moving stimuli reveal computations learned from natural scenes.",
+    approach: "In my MSc project, I compared models of retinal ganglion-cell responses with the biological circuits that shape them. I looked at how models handle changes in light and contrast, and how tests with moving stimuli reveal computations learned from natural scenes.",
     detail: "One study I examined added photoreceptor adaptation ahead of a convolutional network. That gave me a concrete way to ask when modeling part of the biology helps a network generalize to new light levels.",
     links: [
       { label: "Photoreceptor adaptation study", href: "https://doi.org/10.1038/s41467-024-50114-5" },
