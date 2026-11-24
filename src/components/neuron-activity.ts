@@ -1,5 +1,6 @@
 import type { Cell, Point3 } from "@/data/dendrites";
 import { mapCells } from "../data/neuron-scheduling";
+import { somaSprite } from "./soma-sprite";
 import { initNeuronGL } from "./neuron-gl";
 import {
   cellMaterial,
@@ -194,6 +195,7 @@ function prepare(cell: Cell) {
     pigment,
     color: colorAt(pigment, 1),
     waveHighlight: "",
+    somaHighlight: "",
     hue: toHsl(pigment),
     contacts, incident, pickGroups,
     shape,
@@ -207,6 +209,8 @@ function prepare(cell: Cell) {
 }
 type Neuron = ReturnType<typeof prepare>;
 const fadeDuration = 0.45;
+const somaDecayTime = 0.65, somaGlowDuration = 1.8;
+const somaCutoff = Math.exp(-somaGlowDuration / somaDecayTime);
 // Give relays time to cross the field at the configured speed, then fade.
 const burstDuration = 2.34 / pulseTravelRate + fadeDuration;
 type Hit = { neuron: Neuron; edgeIndex: number; fraction: number; onSoma?: boolean };
@@ -274,11 +278,17 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       const highlight = n.pigment.map(c => Math.round(c * gain * (1 - tint) + 255 * tint));
       n.hue = toHsl(highlight);
       n.waveHighlight = `rgb(${highlight.join(",")})`;
+      n.somaHighlight = colorAt(highlight.map(c => c + (255 - c) * .28), 1);
       if (!halos.has(n.color)) halos.set(n.color, halo(n.color));
     }
   }
   applyMaterials();
   let flights: Front[] = [], inputs: Front[] = [], spreads: Spread[] = [];
+  const somaHits = new Map<Neuron, number>();
+  const cableMasks = new Set<Neuron>();
+  const somaSprites = new WeakMap<Neuron, {
+    yaw: number; pitch: number; color: string; body: ReturnType<typeof somaSprite>;
+  }>();
   let stillFront: Front | undefined;
   let lastPattern: { cell: Neuron; stimulus: Stimulus; pattern: Pattern } | undefined;
   let lastTap = -Infinity, charge = 0, endsAt = -Infinity;
@@ -648,19 +658,30 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     paintStimulus();
   }
 
-  function lightSoma(n: Neuron, intensity: number) {
+  function stampSoma(n: Neuron, mask: boolean, intensity = 1) {
     const p = project(n.cell.soma);
-    const r = (n.cell.radius * p.size + 3) * 1.65;
-    ctx.globalAlpha = intensity * 0.86;
-    ctx.drawImage(halos.get(n.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
-    ctx.globalAlpha = intensity * 0.75;
-    ctx.fillStyle = n.waveHighlight;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(1.4, r * 0.23), 0, Math.PI * 2);
-    ctx.fill();
+    let entry = somaSprites.get(n);
+    // Sub-pixel camera drift can reuse the stamp at its new projected center.
+    if (!entry || entry.color !== n.color || Math.abs(lastYaw - entry.yaw) > .018 ||
+        Math.abs(lastPitch - entry.pitch) > .018) {
+      const image = entry?.body.image ?? document.createElement("canvas");
+      const body = somaSprite(n.cell, project, p, n.axisTip, n.shape.elongation, n.waveHighlight, n.somaHighlight, image);
+      entry = { body, yaw: lastYaw, pitch: lastPitch, color: n.color };
+      somaSprites.set(n, entry);
+    }
+    const body = entry.body, zoom = p.size / body.size;
+    if (!mask) {
+      const r = Math.max(n.cell.radius * p.size * 2.3, .72 * zoom * Math.max(body.width, body.height));
+      ctx.globalAlpha = intensity * .65;
+      ctx.drawImage(halos.get(n.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
+    }
+    ctx.globalAlpha = intensity;
+    ctx.drawImage(body.image, p.x + body.left * zoom, p.y + body.top * zoom, body.width * zoom, body.height * zoom);
   }
 
-  function drawBridge(front: Front, bridge: Bridge) {
+  function drawBridge(front: Front, bridge: Bridge, fade: number) {
+    cableMasks.add(bridge.from);
+    cableMasks.add(front.cell);
     const head = Math.min(1, (clock - bridge.born) / bridge.duration);
     const tail = Math.max(0, head - 0.46);
     const a = project(between(bridge.start, bridge.end, tail));
@@ -674,8 +695,8 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
     ctx.strokeStyle = gradient;
     ctx.lineCap = "round";
-    ctx.lineWidth = pulseHaloWidth; ctx.globalAlpha = 0.21; ctx.stroke();
-    ctx.lineWidth = pulseCoreWidth; ctx.globalAlpha = 0.97; ctx.stroke();
+    ctx.lineWidth = pulseHaloWidth; ctx.globalAlpha = 0.21 * fade; ctx.stroke();
+    ctx.lineWidth = pulseCoreWidth; ctx.globalAlpha = 0.97 * fade; ctx.stroke();
   }
 
   const cablePoint = { x: 0, y: 0, z: 0 };
@@ -689,7 +710,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
 
   // Only visit cable pieces whose travel times intersect this frame. All
   // illuminated branches share one stroke path and two paint passes per cell.
-  function drawCables(front: Front, tail: number, head: number, still: boolean) {
+  function drawCables(front: Front, tail: number, head: number, still: boolean, fade = 1) {
     const { bands, longest } = front.pattern;
     let lo = 0, hi = bands.length;
     while (lo < hi) {
@@ -714,40 +735,38 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       pieces++;
     }
     if (!pieces) return;
+    cableMasks.add(front.cell);
     ctx.lineCap = ctx.lineJoin = "round";
     ctx.strokeStyle = front.cell.color;
     ctx.lineWidth = still ? 2.43 : pulseHaloWidth;
-    ctx.globalAlpha = still ? 0.14 : 0.22;
+    ctx.globalAlpha = still ? 0.14 : 0.22 * fade;
     ctx.stroke();
     ctx.strokeStyle = front.cell.waveHighlight;
     ctx.lineWidth = still ? 0.77 : pulseCoreWidth;
-    ctx.globalAlpha = still ? 0.67 : 0.96;
+    ctx.globalAlpha = still ? 0.67 : 0.96 * fade;
     ctx.stroke();
   }
 
-  function drawFront(front: Front) {
+  function drawFront(front: Front, fade: number) {
     const { cell, pattern } = front, age = clock - front.born;
     if (age < 0) {
-      if (front.bridge) drawBridge(front, front.bridge);
+      if (front.bridge) drawBridge(front, front.bridge, fade);
       return;
     }
-    drawCables(front, (age - 0.22 * front.decay) * pattern.speed, age * pattern.speed, false);
+    drawCables(front, (age - 0.22 * front.decay) * pattern.speed, age * pattern.speed, false, fade);
     if (age < 0.20) {
       const p = project(pattern.origin), r = 6 * p.size;
-      ctx.globalAlpha = 0.9 * (1 - age / 0.20);
+      ctx.globalAlpha = fade * 0.9 * (1 - age / 0.20);
       ctx.drawImage(halos.get(cell.color)!, p.x - r, p.y - r, 2 * r, 2 * r);
     }
-    const landed = age - pattern.distance[cell.somaIndex] / pattern.speed;
-    const afterglow = 0.34 * front.decay;
-    if (landed >= 0 && landed < afterglow) lightSoma(cell, (1 - landed / afterglow) ** 2);
+    const arrival = front.born + pattern.distance[cell.somaIndex] / pattern.speed;
+    if (arrival <= clock && clock - arrival < somaGlowDuration &&
+        arrival > (somaHits.get(cell) ?? -Infinity)) somaHits.set(cell, arrival);
   }
 
   function paintStimulus() {
-    if (!inputs.length && !flights.length && !spreads.length && !stillFront) return;
-    if (clock >= endsAt && !stillFront) {
-      clearWaves();
-      return;
-    }
+    if (!inputs.length && !flights.length && !spreads.length && !stillFront && !somaHits.size) return;
+    if (clock >= endsAt && !stillFront) endBurst();
     const fade = Math.min(1, Math.max(0, (endsAt - clock) / fadeDuration));
     const alive = (f: Front) => clock < f.born + f.pattern.extent / f.pattern.speed + 0.34 * f.decay;
     if (inputs.length) inputs = inputs.filter(alive);
@@ -780,20 +799,30 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
       }
     }
     if (!inputs.length && !flights.length && spreads.every(s => !s.pending)) spreads = [];
-    for (const front of flights) drawFront(front);
-    for (const front of inputs) drawFront(front);
+    for (const front of flights) drawFront(front, fade);
+    for (const front of inputs) drawFront(front, fade);
     if (stillFront) drawCables(stillFront, 0, stillFront.pattern.extent + 1, true);
-    for (const cell of stillCells) lightSoma(cell, 0.74);
+
+    if (cableMasks.size) {
+      ctx.globalCompositeOperation = "destination-out";
+      for (const cell of cableMasks) stampSoma(cell, true);
+      ctx.globalCompositeOperation = "source-over";
+      cableMasks.clear();
+    }
+    for (const [cell, arrival] of somaHits) {
+      const age = clock - arrival;
+      if (age >= somaGlowDuration) somaHits.delete(cell);
+      else stampSoma(cell, false, (Math.exp(-age / somaDecayTime) - somaCutoff) / (1 - somaCutoff));
+    }
+    for (const cell of stillCells) stampSoma(cell, false, 0.8);
     ctx.globalAlpha = 1;
-    // Fade the transparent activity canvas as a layer, leaving the tissue intact.
-    canvas.style.opacity = stillFront || fade >= 1 ? "" : String(fade);
   }
 
   function tick(time: number) {
     frame = 0;
     if (!visible || document.hidden || scrolling) return;
     clock = time / 1000;
-    const active = inputs.length || flights.length || spreads.length || stillFront;
+    const active = inputs.length || flights.length || spreads.length || somaHits.size || stillFront;
     const drifting = gpu && !paused && !motion.matches;
     const interval = active ? 1000 / 30 : 1000 / 20;
     if (!viewPending && time - drawn < interval - 0.5) {
@@ -806,18 +835,21 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     if (active) paint();
     else geometry();
     if (drifting || viewPending || (!paused && !motion.matches &&
-        (inputs.length || flights.length || spreads.some(s => s.pending)))) play();
+        (inputs.length || flights.length || somaHits.size || spreads.some(s => s.pending)))) play();
   }
   function play() {
     if (!frame && visible && !document.hidden && !scrolling)
       frame = requestAnimationFrame(tick);
   }
-  function clearWaves() {
+  function endBurst() {
     inputs = []; flights = []; spreads = [];
+  }
+  function clearWaves() {
+    endBurst();
+    somaHits.clear(); cableMasks.clear();
     stillFront = undefined; stillCells = []; lastPattern = undefined;
     charge = 0; lastTap = endsAt = -Infinity;
     window.clearTimeout(stillTimer);
-    canvas.style.opacity = "";
   }
   function stop() {
     cancelAnimationFrame(frame);
@@ -954,7 +986,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   let lastPick: { point: { x: number; y: number }; hit: Hit; epoch: number } | undefined;
   function choose(point: { x: number; y: number }, tapTime: number) {
     clock = performance.now() / 1000;
-    if (clock >= endsAt) clearWaves();
+    if (clock >= endsAt) endBurst();
     const hit = lastPick && lastPick.epoch === epoch && Math.hypot(
       lastPick.point.x - point.x, lastPick.point.y - point.y,
     ) < 0.5 ? lastPick.hit : pick(point);
@@ -965,7 +997,6 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
     lastTap = tapTime;
     holdViewUntil = clock + 0.55;
     endsAt = clock + burstDuration;
-    canvas.style.opacity = "";
     const continuing = interval < 1.5;
     charge = nextCharge(continuing ? charge : 0, interval);
     const origin: Stimulus = hit.onSoma ? { node: n.somaIndex } :
@@ -1006,7 +1037,7 @@ export async function activateNeuron(figure: HTMLElement, cells: Cell[]) {
   function resume() {
     if (!visible || document.hidden) return;
     resize();
-    if (viewPending || (gpu && !paused && !motion.matches) || inputs.length || flights.length || spreads.length)
+    if (viewPending || (gpu && !paused && !motion.matches) || inputs.length || flights.length || spreads.length || somaHits.size)
       play();
   }
   new MutationObserver(() => {
