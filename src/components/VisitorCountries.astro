@@ -142,11 +142,18 @@
     highlights.textContent = "Loading counts…";
     // A fresh key per page load lets repeat visits count while keeping a retry idempotent.
     const token = location.origin === "https://mranmay.github.io" ? crypto.randomUUID() : "";
+    let visit = token;
+    if (token) {
+      try {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timeZone) visit = JSON.stringify({ token, timeZone });
+      } catch { /* Count the visit even when the browser withholds its time zone. */ }
+    }
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
     try {
       const response = await fetch(endpoint, {
-        method: token ? "POST" : "GET", body: token || undefined,
+        method: token ? "POST" : "GET", body: visit || undefined,
         credentials: "omit", referrerPolicy: "no-referrer", signal: controller.signal,
       });
       if (!response.ok) throw new Error();
