@@ -7,8 +7,8 @@ export const projects = [
     title: "Mapping visual inputs onto dendrites",
     group: "With Federico Rossi · Istituto Italiano di Tecnologia, Rovereto",
     question: "Does a neuron’s wiring reflect the orientation of the visual edges it responds to?",
-    approach: "I use MICrONS reconstructions of mouse visual cortex to map where incoming synapses fall around each cell body and measure the length of dendrite in each direction. I compare those patterns with the edge orientation a model predicts the neuron prefers.",
-    detail: "I look for alignment on the cortical surface and in visual space using a retinotopic map. I compare apical and basal dendrites within each neuron. To estimate how much alignment to expect by chance, I shuffle orientation preferences among neurons in the same area and layer.",
+    approach: "Take a neuron that a model predicts will respond best to vertical edges. In MICrONS reconstructions of mouse visual cortex, I map where its incoming synapses land and how much dendrite lies in each direction from the cell body.",
+    detail: "A retinotopic map lets me check for alignment on the cortical surface and in visual space, then compare apical and basal dendrites within the same cell. To see how much alignment could arise by chance, I shuffle orientation preferences among neurons in the same cortical area and layer.",
     links: [{ label: "Read my master’s thesis", href: "https://drive.google.com/file/d/1ziakES70sU3XoB4FfqHiw9qo5sd5oClW/view?usp=drive_link" }],
   },
   {
